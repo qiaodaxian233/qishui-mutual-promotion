@@ -13,9 +13,12 @@
         <span class="user-nickname">{{ userStore.user?.nickname || '音乐爱好者' }}</span>
         <van-tag type="primary" round>信用 {{ userStore.user?.creditScore || 0 }}</van-tag>
       </div>
-      <div class="points-row">
+      <div class="points-row" @click="$router.push('/points')" style="cursor:pointer">
         <span class="points-label">我的积分</span>
-        <span class="points-value">{{ userStore.user?.points ?? 0 }}</span>
+        <div style="display:flex;align-items:baseline;gap:4px">
+          <span class="points-value">{{ userStore.user?.points ?? 0 }}</span>
+          <van-icon name="arrow" size="14" color="#bbb" />
+        </div>
       </div>
       <van-button block type="default" size="small" @click="onLogout">
         退出登录

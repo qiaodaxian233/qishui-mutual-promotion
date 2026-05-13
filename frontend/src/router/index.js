@@ -33,6 +33,12 @@ const routes = [
     meta: { title: '我的' }
   },
   {
+    path: '/points',
+    name: 'points',
+    component: () => import('@/views/PointsView.vue'),
+    meta: { title: '积分明细', requiresAuth: true }
+  },
+  {
     path: '/tasks/publish',
     name: 'publish-task',
     component: () => import('@/views/PublishTaskView.vue'),

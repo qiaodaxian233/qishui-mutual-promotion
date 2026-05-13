@@ -26,9 +26,9 @@
             </van-tag>
           </div>
         </div>
-        <div class="points-badge">
+        <div class="points-badge" @click="$router.push('/points')">
           <span class="pts-num">{{ userStore.user?.points ?? 0 }}</span>
-          <span class="pts-label">积分</span>
+          <span class="pts-label">积分 ›</span>
         </div>
       </section>
 
@@ -187,7 +187,7 @@ function statusMeta(status) {
     active:    { label: '进行中', type: 'primary' },
     completed: { label: '已完成', type: 'success' },
     cancelled: { label: '已撤销', type: 'default' },
-    expired:   { label: '已过期', type: 'default' }
+    expired:   { label: '已过期', type: 'warning' }
   };
   return map[status] || { label: status, type: 'default' };
 }
@@ -195,6 +195,7 @@ function statusMeta(status) {
 function completionStatusMeta(status) {
   const map = {
     claimed:        { label: '待完成', type: 'warning' },
+    timeout:        { label: '已超时', type: 'default' },
     auto_passed:    { label: '验证通过', type: 'primary' },
     auto_rejected:  { label: '验证失败', type: 'danger' },
     manual_passed:  { label: '已发放', type: 'success' },
