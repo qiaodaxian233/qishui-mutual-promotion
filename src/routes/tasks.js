@@ -1,21 +1,25 @@
 /**
  * 任务相关路由
  *
- * POST   /api/tasks/preview     预览解析(不扣积分,只解析文案 + 抓页)
- * POST   /api/tasks             发布任务(扣积分)
- * GET    /api/tasks             任务广场列表
- * GET    /api/tasks/:id         任务详情
- * GET    /api/tasks/mine        我发布的任务列表
- * POST   /api/tasks/:id/cancel  撤销任务
- * GET    /api/tasks/config      任务类型配置(供前端展示)
+ * POST   /api/tasks/preview         预览解析(不扣积分,只解析文案 + 抓页)
+ * POST   /api/tasks                 发布任务(扣积分)
+ * GET    /api/tasks                 任务广场列表
+ * GET    /api/tasks/:id             任务详情
+ * GET    /api/tasks/mine            我发布的任务列表
+ * POST   /api/tasks/:id/cancel      撤销任务
+ * POST   /api/tasks/:id/claim       接单(需 deviceFp 反作弊)
+ * GET    /api/tasks/config          任务类型配置(供前端展示)
  */
 const express = require('express');
 const router = express.Router();
 
 const tasksService = require('../services/tasks');
+const completionsService = require('../services/completions');
 const parser = require('../services/qishui-parser');
 const { requireAuth, optionalAuth } = require('../middlewares/auth');
 const { generalLimiter, strictLimiter } = require('../middlewares/rate-limit');
+const { getClientIp, getUserAgent, getDeviceFp } = require('../utils/request');
+const { sha256WithSalt } = require('../utils/crypto');
 
 /**
  * 任务类型配置
@@ -149,6 +153,43 @@ router.post('/:id/cancel', requireAuth, async (req, res) => {
     return res.status(400).json({ ok: false, error: '任务 ID 不正确' });
   }
   const result = await tasksService.cancelTask(req.user.id, taskId);
+  if (!result.ok) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
+/**
+ * 接单
+ * body: { deviceFp }   (前端用 FingerprintJS 算)
+ *       也可以放在 X-Device-Fp header 里
+ */
+router.post('/:id/claim', requireAuth, strictLimiter, async (req, res) => {
+  const taskId = parseInt(req.params.id, 10);
+  if (!Number.isInteger(taskId) || taskId <= 0) {
+    return res.status(400).json({ ok: false, error: '任务 ID 不正确' });
+  }
+
+  const ip = getClientIp(req);
+  const ipHash = sha256WithSalt(ip);
+  const deviceFp = getDeviceFp(req);
+  const userAgent = getUserAgent(req);
+
+  if (!deviceFp) {
+    return res.status(400).json({
+      ok: false,
+      error: '缺少设备指纹,请确保前端正确传入 deviceFp(或 X-Device-Fp 头)'
+    });
+  }
+
+  const result = await completionsService.claimTask({
+    userId: req.user.id,
+    taskId,
+    ipHash,
+    deviceFp,
+    userAgent
+  });
+
   if (!result.ok) {
     return res.status(400).json(result);
   }
