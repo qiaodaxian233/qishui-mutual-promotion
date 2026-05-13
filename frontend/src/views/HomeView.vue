@@ -249,13 +249,14 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, #f0fff4, #e8fce8);
-  border: 1px solid rgba(26, 254, 73, 0.15);
-  border-radius: 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--divider);
+  border-radius: var(--radius-lg, 16px);
   padding: 14px 16px;
   margin-top: 12px;
   cursor: pointer;
   transition: transform .12s;
+  box-shadow: var(--shadow-sm);
 }
 .checkin-card:active { transform: scale(.98); }
 .checkin-left { display: flex; align-items: center; gap: 10px; }
