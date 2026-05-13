@@ -194,7 +194,7 @@ function logout(token) {
  */
 async function getUserById(userId) {
   const [rows] = await pool.query(
-    `SELECT id, email, nickname, avatar_url, points, credit_score, status
+    `SELECT id, email, nickname, avatar_url, points, credit_score, status, role
        FROM users WHERE id = ? LIMIT 1`,
     [userId]
   );
