@@ -20,6 +20,12 @@ const routes = [
     component: () => import('@/views/RegisterView.vue'),
     meta: { title: '注册', guestOnly: true }
   },
+  {
+    path: '/tasks',
+    name: 'tasks',
+    component: () => import('@/views/TasksView.vue'),
+    meta: { title: '任务广场' }
+  },
   // SPA 兜底:未匹配的全部回首页(用户刷新深层路由时不 404)
   {
     path: '/:catchAll(.*)',

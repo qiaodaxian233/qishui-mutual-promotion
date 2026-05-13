@@ -32,12 +32,16 @@
       </van-button>
     </section>
 
-    <!-- 后续页面占位 -->
-    <section class="placeholder mt-32">
-      <van-empty
-        description="任务广场即将上线 🚧"
-        image-size="120"
-      />
+    <!-- 任务广场入口 -->
+    <section class="plaza-entry mt-32">
+      <div class="plaza-card" @click="$router.push('/tasks')">
+        <div class="plaza-icon">🎪</div>
+        <div class="plaza-text">
+          <div class="plaza-title">任务广场</div>
+          <div class="plaza-sub">浏览正在招募的独立音乐人任务</div>
+        </div>
+        <van-icon name="arrow" size="18" color="#bbb" />
+      </div>
     </section>
 
     <!-- 健康检查指示器(开发期用,知道前后端通了) -->
@@ -176,8 +180,52 @@ onMounted(async () => {
   margin-top: 32px;
 }
 
-.placeholder {
-  padding: 32px 0;
+.plaza-entry {
+  margin-top: 32px;
+}
+
+.plaza-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.plaza-card:active {
+  transform: scale(0.98);
+}
+
+.plaza-icon {
+  font-size: 36px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(26, 254, 73, 0.12);
+  flex-shrink: 0;
+}
+
+.plaza-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.plaza-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+}
+
+.plaza-sub {
+  font-size: 12px;
+  color: var(--color-text-secondary);
 }
 
 .health-indicator {
