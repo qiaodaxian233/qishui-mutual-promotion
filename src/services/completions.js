@@ -170,7 +170,7 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
  *
  * @returns {Object} { ok, status, delta?, awarded?, error? }
  */
-async function submitCompletion({ userId, completionId }) {
+async function submitCompletion({ userId, completionId, screenshotPath, screenshotHash }) {
   // 查 completion
   const [rows] = await pool.query(
     `SELECT c.id, c.task_id, c.user_id, c.status, c.claimed_at,
@@ -239,6 +239,20 @@ async function submitCompletion({ userId, completionId }) {
      VALUES (?, ?, ?, ?, ?, ?, 'task_complete', 'scrape')`,
     [c.song_id, c.task_id, current.likes ?? null, current.comments ?? null, current.shares ?? null, current.plays ?? null]
   );
+
+  // 保存截图凭证到 task_proofs
+  if (screenshotPath) {
+    try {
+      await pool.query(
+        `INSERT INTO task_proofs (completion_id, file_path, file_sha256, file_size_kb, mime_type)
+         VALUES (?, ?, ?, ?, 'image/webp')`,
+        [completionId, screenshotPath, screenshotHash || '', 0]
+      );
+    } catch (proofErr) {
+      // 截图存证失败不阻塞主流程,只记日志
+      console.error(`[submit] 截图存证失败 completion#${completionId}:`, proofErr.message);
+    }
+  }
 
   // 增量 < 1 → 失败,返还名额
   if (delta == null || delta < 1) {

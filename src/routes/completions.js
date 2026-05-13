@@ -17,6 +17,7 @@ const { requireAuth } = require('../middlewares/auth');
 const { strictLimiter } = require('../middlewares/rate-limit');
 const { getClientIp, getUserAgent, getDeviceFp } = require('../utils/request');
 const { sha256WithSalt } = require('../utils/crypto');
+const { upload, compressAndSave } = require('../utils/image');
 
 /**
  * 我接的任务列表
@@ -42,16 +43,35 @@ router.get('/:id', requireAuth, async (req, res) => {
 });
 
 /**
- * 提交完成(触发自动验证)
+ * 提交完成(上传截图 + 触发自动验证)
+ * Content-Type: multipart/form-data
+ * 字段: screenshot (file, required)
  */
-router.post('/:id/submit', requireAuth, strictLimiter, async (req, res) => {
+router.post('/:id/submit', requireAuth, strictLimiter, upload.single('screenshot'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isInteger(id) || id <= 0) {
     return res.status(400).json({ ok: false, error: '接单 ID 不正确' });
   }
+
+  // 必须上传截图
+  if (!req.file) {
+    return res.status(400).json({ ok: false, error: '请上传完成截图' });
+  }
+
+  // 压缩保存
+  let screenshotInfo;
+  try {
+    screenshotInfo = await compressAndSave(req.file.buffer, `completion_${id}`);
+  } catch (err) {
+    console.error('[submit] 截图压缩失败:', err.message);
+    return res.status(400).json({ ok: false, error: '截图处理失败,请换一张图片重试' });
+  }
+
   const result = await completionsService.submitCompletion({
     userId: req.user.id,
-    completionId: id
+    completionId: id,
+    screenshotPath: screenshotInfo.relativePath,
+    screenshotHash: screenshotInfo.hash
   });
   if (!result.ok) {
     return res.status(400).json(result);

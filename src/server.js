@@ -69,6 +69,12 @@ if (fs.existsSync(PUBLIC_DIR)) {
   // 根目录的其它静态文件(favicon、图标等)短缓存
   app.use(express.static(PUBLIC_DIR, { maxAge: '1h', index: false }));
 
+  // 上传的截图文件(WebP 压缩后)
+  const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+  if (fs.existsSync(UPLOADS_DIR)) {
+    app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
+  }
+
   // SPA fallback:所有 GET 非 /api 路径都返回 index.html
   // 这样前端深层路由(如 /tasks/123)刷新页面也能正常加载
   app.get(/^(?!\/api\/).*$/, (req, res, next) => {

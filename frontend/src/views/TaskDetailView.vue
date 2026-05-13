@@ -111,7 +111,7 @@
       </section>
 
       <!-- 接单后的操作提示 -->
-      <section v-if="claimResult" class="claim-card">
+      <section v-if="claimResult && !submitResult" class="claim-card">
         <h3 class="card-title">✅ 已接单,请完成任务</h3>
         <p class="claim-tip">{{ claimResult.tip }}</p>
         <div class="link-row">
@@ -120,7 +120,34 @@
             {{ copied ? '✓ 已复制' : '复制' }}
           </van-button>
         </div>
-        <p class="claim-hint">完成后点击下方按钮提交验证</p>
+
+        <!-- 截图上传区 -->
+        <div class="upload-section">
+          <h4 class="upload-title">📸 上传完成截图</h4>
+          <p class="upload-hint">
+            请在汽水音乐完成操作后,截图上传作为凭证
+          </p>
+
+          <!-- 预览 / 上传按钮 -->
+          <div class="upload-area" @click="triggerUpload">
+            <template v-if="screenshotPreview">
+              <img :src="screenshotPreview" class="preview-img" alt="截图预览" />
+              <span class="change-btn">更换截图</span>
+            </template>
+            <template v-else>
+              <van-icon name="photograph" size="36" color="#ccc" />
+              <span class="upload-text">点击上传截图</span>
+              <span class="upload-formats">支持 JPG/PNG/WebP/HEIC · 10MB 以内</span>
+            </template>
+          </div>
+          <input
+            ref="fileInputRef"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            style="display:none"
+            @change="onFileSelect"
+          />
+        </div>
       </section>
 
       <!-- 提交结果 -->
@@ -157,16 +184,17 @@
         >
           撤销我发布的任务
         </van-button>
-        <!-- 已接单:提交完成 -->
+        <!-- 已接单:提交截图验证 -->
         <van-button
           v-else-if="claimResult"
           block
           type="primary"
           :loading="submitting"
-          loading-text="验证中…"
+          loading-text="上传验证中…"
+          :disabled="!screenshotFile"
           @click="onSubmit"
         >
-          我已完成,提交验证
+          {{ screenshotFile ? '上传截图并提交验证' : '请先上传截图' }}
         </van-button>
         <!-- 已招满 -->
         <van-button
@@ -217,6 +245,11 @@ const claimResult = ref(null);
 // Submit flow
 const submitting = ref(false);
 const submitResult = ref(null);
+
+// Screenshot upload
+const fileInputRef = ref(null);
+const screenshotFile = ref(null);
+const screenshotPreview = ref(null);
 
 const typeMeta = computed(() => {
   if (!task.value) return { label: '', tagType: 'default' };
@@ -324,21 +357,54 @@ async function onClaim() {
   }
 }
 
+function triggerUpload() {
+  fileInputRef.value?.click();
+}
+
+function onFileSelect(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) {
+    showFailToast('图片不能超过 10MB');
+    e.target.value = '';
+    return;
+  }
+  screenshotFile.value = file;
+  // 生成预览
+  const reader = new FileReader();
+  reader.onload = (ev) => { screenshotPreview.value = ev.target.result; };
+  reader.readAsDataURL(file);
+}
+
 async function onSubmit() {
   if (!claimResult.value?.completionId) {
     showFailToast('接单信息丢失,请刷新重试');
     return;
   }
+  if (!screenshotFile.value) {
+    showFailToast('请先上传完成截图');
+    return;
+  }
   submitting.value = true;
   try {
-    const res = await api.post(`/completions/${claimResult.value.completionId}/submit`);
+    // 用 FormData 上传截图(不能用 axios 的 api.post,需要 multipart)
+    const formData = new FormData();
+    formData.append('screenshot', screenshotFile.value);
+
+    const token = localStorage.getItem('qishui_token');
+    const resp = await fetch(`/api/completions/${claimResult.value.completionId}/submit`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData
+    });
+    const res = await resp.json();
     submitResult.value = res;
     if (res.ok) {
       showToast({ message: '验证通过！', type: 'success' });
       await userStore.refreshMe();
     }
   } catch (err) {
-    submitResult.value = { ok: false, error: err?.error || '验证失败,请稍后再试' };
+    submitResult.value = { ok: false, error: err?.message || '验证失败,请稍后再试' };
   } finally {
     submitting.value = false;
   }
@@ -600,6 +666,66 @@ onMounted(() => {
   font-size: 13px;
   color: var(--color-text-regular);
 }
+/* 截图上传 */
+.upload-section {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--divider);
+}
+.upload-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.upload-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  border: 2px dashed var(--divider);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  overflow: hidden;
+  position: relative;
+}
+.upload-area:active {
+  border-color: var(--color-primary);
+}
+.upload-text {
+  margin-top: 8px;
+  font-size: 14px;
+  color: var(--color-text-regular);
+}
+.upload-formats {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--color-text-disabled);
+}
+.preview-img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+}
+.change-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 4px 10px;
+  background: rgba(0,0,0,.55);
+  color: #fff;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
 /* 桌面端居中跟 app-root 一致 */
 @media (min-width: 768px) {
   .action-bar {
