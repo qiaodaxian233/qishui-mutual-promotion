@@ -50,6 +50,12 @@ const routes = [
     component: () => import('@/views/TaskDetailView.vue'),
     meta: { title: '任务详情' }
   },
+  {
+    path: '/admin/welfare',
+    name: 'admin-welfare',
+    component: () => import('@/views/AdminWelfareView.vue'),
+    meta: { title: '福利任务发布', requiresAuth: true }
+  },
   // SPA 兜底:未匹配的全部回首页(用户刷新深层路由时不 404)
   {
     path: '/:catchAll(.*)',

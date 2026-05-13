@@ -260,13 +260,14 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
     `SELECT
        t.id, t.task_type, t.reward_points, t.quota_total, t.quota_remaining,
        t.min_listen_sec, t.share_link, t.expires_at, t.created_at,
+       t.is_welfare,
        s.song_name, s.artist_name, s.cover_url,
        u.nickname AS publisher_nickname
      FROM tasks t
      JOIN songs s ON s.id = t.song_id
      JOIN users u ON u.id = t.publisher_id
      WHERE ${conditions.join(' AND ')}
-     ORDER BY t.created_at DESC
+     ORDER BY t.is_welfare DESC, t.created_at DESC
      LIMIT ? OFFSET ?`,
     params
   );
@@ -387,8 +388,115 @@ module.exports = {
   calculateCost,
   validatePublishParams,
   publishTask,
+  publishWelfareTask,
   listTasks,
   getTaskById,
   listMyTasks,
   cancelTask
 };
+
+/**
+ * 系统发布福利任务(不扣积分、跳过 24h 去重)
+ *
+ * @param {Object} opts
+ * @param {number} opts.publisherId  - 管理员用户 ID(作为发布者)
+ * @param {string} opts.shareText    - 汽水分享文案
+ * @param {string} opts.taskType     - like/listen/comment/share
+ * @param {number} opts.reward       - 单次奖励积分
+ * @param {number} opts.quota        - 名额
+ * @param {number} [opts.minListenSec]
+ * @returns {Object} { ok, taskId, song, ... }
+ */
+async function publishWelfareTask({ publisherId, shareText, taskType, reward, quota, minListenSec }) {
+  // 基本校验
+  const errs = validatePublishParams({ taskType, reward, quota, minListenSec });
+  if (errs.length > 0) {
+    return { ok: false, error: errs.join(';') };
+  }
+
+  // 解析分享文案
+  const parseResult = await parser.parseShareLink(shareText);
+  if (!parseResult.ok) {
+    return { ok: false, error: parseResult.error, stage: parseResult.stage };
+  }
+  const { parsed, meta, interactions } = parseResult;
+
+  // upsert 歌曲
+  const songRow = await songsService.upsertSong({
+    qishuiSongId: meta.qishuiSongId,
+    songName: meta.songName,
+    artistName: meta.artistName,
+    coverUrl: meta.coverUrl,
+    durationSec: meta.durationSec,
+    interactions
+  });
+
+  if (taskType === 'listen' && meta.durationSec && minListenSec > meta.durationSec) {
+    return { ok: false, error: `播放秒数(${minListenSec})超过歌曲时长(${meta.durationSec})` };
+  }
+
+  // 算费用(记录用,但不实际扣)
+  const cost = calculateCost(reward, quota);
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 直接建任务,不扣积分
+    const [taskResult] = await conn.query(
+      `INSERT INTO tasks
+         (publisher_id, song_id, share_link, share_code, share_text_raw,
+          task_type, min_listen_sec,
+          reward_points, platform_fee, total_cost,
+          quota_total, quota_remaining,
+          is_welfare,
+          expires_at, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, DATE_ADD(NOW(), INTERVAL ? DAY), 'active')`,
+      [
+        publisherId,
+        songRow.id,
+        parsed.shareLink,
+        parsed.shareCode,
+        shareText.slice(0, 1000),
+        taskType,
+        minListenSec || null,
+        reward,
+        0,          // 福利任务不收手续费
+        cost.total, // 记录但不扣
+        quota,
+        quota,
+        TASK_EXPIRE_DAYS
+      ]
+    );
+    const taskId = taskResult.insertId;
+
+    // 记互动快照
+    if (interactions.likes != null || interactions.comments != null) {
+      await conn.query(
+        `INSERT INTO interaction_snapshots
+           (song_id, task_id, likes, comments, shares, plays, snapshot_type, source)
+         VALUES (?, ?, ?, ?, ?, ?, 'task_create', 'scrape')`,
+        [
+          songRow.id, taskId,
+          interactions.likes ?? null,
+          interactions.comments ?? null,
+          interactions.shares ?? null,
+          interactions.plays ?? null
+        ]
+      );
+    }
+
+    await conn.commit();
+
+    return {
+      ok: true,
+      taskId,
+      song: { id: songRow.id, name: meta.songName, artist: meta.artistName }
+    };
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+}

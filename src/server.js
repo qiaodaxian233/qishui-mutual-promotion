@@ -45,6 +45,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/completions', require('./routes/completions'));
 app.use('/api/points', require('./routes/points'));
+app.use('/api/admin', require('./routes/admin'));
 
 // ============================================================
 // 前端静态文件托管

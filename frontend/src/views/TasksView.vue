@@ -66,6 +66,12 @@
             <div class="card-title-row">
               <h3 class="song-name">{{ task.song_name }}</h3>
               <van-tag
+                v-if="task.is_welfare"
+                type="success"
+                round
+                class="welfare-tag"
+              >🎁 福利</van-tag>
+              <van-tag
                 :type="taskTypeMeta(task.task_type).tagType"
                 round
                 plain
@@ -332,6 +338,10 @@ async function refreshSilently() {
   min-width: 0;
 }
 .type-tag {
+  flex-shrink: 0;
+  font-size: 10px;
+}
+.welfare-tag {
   flex-shrink: 0;
   font-size: 10px;
 }
