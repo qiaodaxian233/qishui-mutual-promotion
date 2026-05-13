@@ -46,7 +46,10 @@
           v-for="task in tasks"
           :key="task.id"
           class="task-card"
-          :class="{ 'task-card--pinned': task.is_pinned }"
+          :class="{
+            'task-card--pinned': task.is_pinned && task.pin_type !== 'super',
+            'task-card--super': task.pin_type === 'super'
+          }"
           @click="goDetail(task.id)"
         >
           <!-- 封面 -->
@@ -65,8 +68,9 @@
           <!-- 内容 -->
           <div class="card-body">
             <div class="card-title-row">
-              <h3 class="song-name" :class="{ 'golden-shimmer': task.is_pinned }">
-                <span v-if="task.is_pinned" class="pin-icon">📌</span>
+              <h3 class="song-name" :class="pinClass(task)">
+                <span v-if="task.pin_type === 'super'" class="pin-icon">👑</span>
+                <span v-else-if="task.is_pinned" class="pin-icon">📌</span>
                 {{ task.song_name }}
               </h3>
               <van-tag
@@ -192,6 +196,13 @@ function formatNum(n) {
   if (n >= 10000) return (n / 10000).toFixed(1) + 'w';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
   return String(n);
+}
+
+function pinClass(task) {
+  if (task.pin_type === 'super') return 'rainbow-shimmer';
+  if (task.pin_type === 'rainbow') return 'rainbow-shimmer';
+  if (task.is_pinned) return 'golden-shimmer';
+  return '';
 }
 
 function onCoverError(e) {
@@ -472,9 +483,47 @@ async function refreshSilently() {
   animation: golden-flow 3s ease-in-out infinite;
   font-weight: 800;
 }
+
+/* 七彩流光效果 */
+.rainbow-shimmer {
+  background: linear-gradient(
+    90deg,
+    #ff0000, #ff7700, #ffdd00, #00ff00, #0099ff, #6633ff, #ff00ff, #ff0000
+  );
+  background-size: 400% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbow-flow 2.5s linear infinite;
+  font-weight: 800;
+}
+
 @keyframes golden-flow {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+@keyframes rainbow-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 400% 50%; }
+}
+
+/* 超级置顶卡片:七彩呼吸边框 */
+.task-card--super {
+  border: 2px solid transparent;
+  background-image: linear-gradient(var(--card-bg), var(--card-bg)),
+                    linear-gradient(90deg, #ff0000, #ff7700, #ffdd00, #00ff00, #0099ff, #6633ff, #ff00ff, #ff0000);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: 100% 100%, 400% 100%;
+  animation: rainbow-border 3s linear infinite, super-glow 2s ease-in-out infinite;
+}
+@keyframes rainbow-border {
+  0% { background-position: 0 0, 0% 50%; }
+  100% { background-position: 0 0, 400% 50%; }
+}
+@keyframes super-glow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255, 0, 255, 0.2), 0 0 20px rgba(0, 153, 255, 0.1); }
+  50% { box-shadow: 0 0 16px rgba(255, 0, 255, 0.4), 0 0 32px rgba(0, 153, 255, 0.2); }
 }
 </style>

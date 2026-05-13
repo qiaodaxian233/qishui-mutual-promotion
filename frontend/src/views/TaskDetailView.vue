@@ -227,30 +227,35 @@
         <!-- 自己发布的 -->
         <template v-else-if="isOwnTask">
           <div class="owner-actions">
+            <template v-if="task.status === 'active' && (!task.pin_type || task.pin_type === 'none')">
+              <van-button block round type="warning" :loading="pinning" @click="onPin('normal')">
+                ✨ 金色置顶（50 积分）
+              </van-button>
+              <van-button block round color="#ff00ff" :loading="pinning" @click="onPin('rainbow')">
+                🌈 七彩置顶（100 积分）
+              </van-button>
+              <van-button block round color="linear-gradient(90deg, #ff0000, #ff7700, #00ff00, #0099ff, #6633ff)" :loading="pinning" @click="onPin('super')">
+                👑 超级置顶（500 积分）· 最顶部
+              </van-button>
+            </template>
+            <template v-else-if="task.status === 'active' && task.pin_type === 'normal'">
+              <van-button block round color="#ff00ff" :loading="pinning" @click="onPin('rainbow')">
+                🌈 升级七彩（100 积分）
+              </van-button>
+              <van-button block round color="linear-gradient(90deg, #ff0000, #ff7700, #00ff00, #0099ff, #6633ff)" :loading="pinning" @click="onPin('super')">
+                👑 升级超级（500 积分）
+              </van-button>
+            </template>
+            <template v-else-if="task.status === 'active' && task.pin_type === 'rainbow'">
+              <van-button block round color="linear-gradient(90deg, #ff0000, #ff7700, #00ff00, #0099ff, #6633ff)" :loading="pinning" @click="onPin('super')">
+                👑 升级超级（500 积分）
+              </van-button>
+            </template>
             <van-button
-              v-if="task.status === 'active' && !task.is_pinned"
-              block
-              type="warning"
-              round
-              :loading="pinning"
-              @click="onPinTask"
-            >
-              📌 置顶（50 积分）· 歌名金色流光
-            </van-button>
-            <van-button
-              v-if="task.is_pinned"
-              block
-              disabled
-              round
-            >
-              ✨ 已置顶
-            </van-button>
-            <van-button
-              block
-              plain
-              round
-              @click="onCancelTask"
-            >
+              v-if="task.pin_type === 'super'"
+              block disabled round
+            >👑 已超级置顶</van-button>
+            <van-button block plain round @click="onCancelTask">
               撤销我发布的任务
             </van-button>
           </div>
@@ -522,12 +527,12 @@ async function onSaveEdit() {
   }
 }
 
-async function onPinTask() {
+async function onPin(pinType) {
   pinning.value = true;
   try {
-    const res = await api.post(`/tasks/${route.params.id}/pin`);
+    const res = await api.post(`/tasks/${route.params.id}/pin`, { pinType });
     if (res.ok) {
-      showToast({ message: '✨ 置顶成功！', type: 'success' });
+      showToast({ message: res.message || '置顶成功！', type: 'success' });
       await userStore.refreshMe();
       await loadTask();
     } else {

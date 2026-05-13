@@ -260,7 +260,7 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
     `SELECT
        t.id, t.task_type, t.reward_points, t.quota_total, t.quota_remaining,
        t.min_listen_sec, t.share_link, t.expires_at, t.created_at,
-       t.is_welfare, t.is_pinned, t.pinned_at,
+       t.is_welfare, t.is_pinned, t.pin_type, t.pinned_at,
        s.song_name, s.artist_name, s.cover_url,
        COALESCE(snap.likes, s.first_seen_likes) AS likes,
        COALESCE(snap.comments, s.first_seen_comments) AS comments,
@@ -277,7 +277,7 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
        )
      ) snap ON snap.task_id = t.id
      WHERE ${conditions.join(' AND ')}
-     ORDER BY t.is_pinned DESC, t.created_at DESC
+     ORDER BY (t.pin_type = 'super') DESC, t.is_pinned DESC, t.created_at DESC
      LIMIT ? OFFSET ?`,
     params
   );
@@ -406,48 +406,58 @@ module.exports = {
   cancelTask
 };
 
-const PIN_COST = 50;
+const PIN_CONFIG = {
+  normal:  { cost: 50,  label: '金色置顶',   effect: 'golden' },
+  rainbow: { cost: 100, label: '七彩置顶',   effect: 'rainbow' },
+  super:   { cost: 500, label: '超级置顶',   effect: 'super' }
+};
 
 /**
- * 置顶任务(扣 50 积分,置顶 7 天)
+ * 置顶任务(多档位)
+ * pin_type: 'normal' | 'rainbow' | 'super'
  */
-async function pinTask({ taskId, userId }) {
-  // 查任务
+async function pinTask({ taskId, userId, pinType = 'normal' }) {
+  const config = PIN_CONFIG[pinType];
+  if (!config) return { ok: false, error: '无效的置顶类型' };
+
   const [[task]] = await pool.query(
-    `SELECT id, publisher_id, status, is_pinned FROM tasks WHERE id = ?`,
+    `SELECT id, publisher_id, status, pin_type FROM tasks WHERE id = ?`,
     [taskId]
   );
   if (!task) return { ok: false, error: '任务不存在' };
   if (task.publisher_id !== userId) return { ok: false, error: '只能置顶自己的任务' };
   if (task.status !== 'active') return { ok: false, error: '只有进行中的任务可以置顶' };
-  if (task.is_pinned) return { ok: false, error: '任务已经置顶了' };
+
+  // 允许升级置顶(从普通升到七彩/超级)
+  const tierOrder = { none: 0, normal: 1, rainbow: 2, super: 3 };
+  if (tierOrder[task.pin_type || 'none'] >= tierOrder[pinType]) {
+    return { ok: false, error: '已有同等或更高级别的置顶' };
+  }
 
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
 
-    // 扣积分
     const deductResult = await pointsService.deductInTx(conn, {
       userId,
-      amount: PIN_COST,
+      amount: config.cost,
       type: 'task_pin',
       refType: 'task',
       refId: taskId,
-      note: `置顶任务 #${taskId}`
+      note: `${config.label} 任务 #${taskId}`
     });
     if (!deductResult.ok) {
       await conn.rollback();
       return { ok: false, error: deductResult.error || '积分不足' };
     }
 
-    // 置顶
     await conn.query(
-      `UPDATE tasks SET is_pinned = 1, pinned_at = NOW() WHERE id = ?`,
-      [taskId]
+      `UPDATE tasks SET is_pinned = 1, pin_type = ?, pinned_at = NOW() WHERE id = ?`,
+      [pinType, taskId]
     );
 
     await conn.commit();
-    return { ok: true, message: '置顶成功！歌名将以金色流光显示' };
+    return { ok: true, message: `${config.label}成功！` };
   } catch (err) {
     await conn.rollback();
     return { ok: false, error: '置顶失败：' + err.message };

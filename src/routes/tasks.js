@@ -206,7 +206,8 @@ router.post('/:id/pin', requireAuth, strictLimiter, async (req, res) => {
   }
   const result = await tasksService.pinTask({
     taskId,
-    userId: req.user.id
+    userId: req.user.id,
+    pinType: req.body.pinType || 'normal'
   });
   if (!result.ok) {
     return res.status(400).json(result);
