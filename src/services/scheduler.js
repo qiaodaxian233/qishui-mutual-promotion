@@ -177,8 +177,6 @@ async function runTaskExpiryJob() {
 
         await conn.commit();
 
-        const refund = (task.reward_points * task.quota_remaining) +
-                       (task.platform_fee - Math.ceil((task.quota_total - task.quota_remaining) * task.reward_points * 0.10));
         notify.send({
           userId: task.publisher_id,
           type: 'task_expired',
