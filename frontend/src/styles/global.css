@@ -44,6 +44,35 @@
 
   /* Toast 成功 / Notify 等用主色变体 */
   --van-toast-loading-icon-color: var(--color-primary-dark);
+
+  /* NavBar 图标/文字色(避免 VantResolver 覆盖) */
+  --van-nav-bar-icon-color: var(--color-primary-dark);
+  --van-nav-bar-text-color: var(--color-primary-dark);
+}
+
+/* ===== Vant 组件直接覆盖(VantResolver 按需加载会在 :root 层冲掉变量覆盖,
+   这里用 class 选择器确保优先级不被吃掉) ===== */
+
+/* 主按钮:汽水绿 */
+.van-button--primary {
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-on-primary) !important;
+}
+/* plain 变体 */
+.van-button--plain.van-button--primary {
+  color: var(--color-primary-dark) !important;
+  background: var(--card-bg, #fff) !important;
+}
+
+/* Tag primary:淡绿底深绿字 */
+.van-tag--primary {
+  background: rgba(26, 254, 73, 0.15) !important;
+  color: var(--color-primary-dark) !important;
+}
+.van-tag--primary.van-tag--plain {
+  color: var(--color-primary-dark) !important;
+  background: var(--card-bg, #fff) !important;
 }
 
 /* ===== reset ===== */

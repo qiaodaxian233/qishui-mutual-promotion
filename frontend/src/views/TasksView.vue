@@ -226,11 +226,10 @@ function goDetail(id) {
 function onPublish() {
   if (!userStore.isLoggedIn) {
     showToast('请先登录');
-    router.push({ name: 'login', query: { redirect: '/tasks' } });
+    router.push({ name: 'login', query: { redirect: '/tasks/publish' } });
     return;
   }
-  // 发布任务页是阶段 5.4,先占位
-  showToast('发布任务页(阶段 5.4)即将上线');
+  router.push('/tasks/publish');
 }
 
 // keep-alive 友好:每次回到这个页面都刷一次

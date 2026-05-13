@@ -27,6 +27,12 @@ const routes = [
     meta: { title: '任务广场' }
   },
   {
+    path: '/tasks/publish',
+    name: 'publish-task',
+    component: () => import('@/views/PublishTaskView.vue'),
+    meta: { title: '发布任务', requiresAuth: true }
+  },
+  {
     path: '/tasks/:id(\\d+)',
     name: 'task-detail',
     component: () => import('@/views/TaskDetailView.vue'),

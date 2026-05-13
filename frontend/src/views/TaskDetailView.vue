@@ -110,16 +110,65 @@
         </ol>
       </section>
 
+      <!-- 接单后的操作提示 -->
+      <section v-if="claimResult" class="claim-card">
+        <h3 class="card-title">✅ 已接单,请完成任务</h3>
+        <p class="claim-tip">{{ claimResult.tip }}</p>
+        <div class="link-row">
+          <span class="link-text">{{ claimResult.shareLink }}</span>
+          <van-button size="small" type="primary" plain @click="copyLink">
+            {{ copied ? '✓ 已复制' : '复制' }}
+          </van-button>
+        </div>
+        <p class="claim-hint">完成后点击下方按钮提交验证</p>
+      </section>
+
+      <!-- 提交结果 -->
+      <section v-if="submitResult" class="submit-result-card">
+        <div v-if="submitResult.ok" class="result-ok">
+          <span class="result-emoji">🎉</span>
+          <h3>验证通过</h3>
+          <p>{{ submitResult.message }}</p>
+        </div>
+        <div v-else class="result-fail">
+          <span class="result-emoji">😥</span>
+          <h3>验证未通过</h3>
+          <p>{{ submitResult.error }}</p>
+        </div>
+      </section>
+
       <!-- 底部固定操作栏 -->
       <div class="action-bar">
+        <!-- 已提交结果:回任务广场 -->
         <van-button
-          v-if="isOwnTask"
+          v-if="submitResult"
+          block
+          type="primary"
+          @click="$router.replace('/tasks')"
+        >
+          回到任务广场
+        </van-button>
+        <!-- 自己发布的 -->
+        <van-button
+          v-else-if="isOwnTask"
           block
           plain
           @click="onCancelTask"
         >
           撤销我发布的任务
         </van-button>
+        <!-- 已接单:提交完成 -->
+        <van-button
+          v-else-if="claimResult"
+          block
+          type="primary"
+          :loading="submitting"
+          loading-text="验证中…"
+          @click="onSubmit"
+        >
+          我已完成,提交验证
+        </van-button>
+        <!-- 已招满 -->
         <van-button
           v-else-if="task.quota_remaining === 0"
           block
@@ -127,13 +176,16 @@
         >
           已招满
         </van-button>
+        <!-- 正常接单 -->
         <van-button
           v-else
           block
           type="primary"
+          :loading="claiming"
+          loading-text="锁定名额中…"
           @click="onClaim"
         >
-          接单(锁定名额 + 30 分钟内完成)
+          接单（锁定名额 + 30 分钟内完成）
         </van-button>
       </div>
     </template>
@@ -144,6 +196,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { showToast, showFailToast, showConfirmDialog } from 'vant';
+import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import api from '@/api';
 import { useUserStore } from '@/stores/user';
 
@@ -156,6 +209,14 @@ const loading = ref(true);
 const loadError = ref('');
 const coverError = ref(false);
 const copied = ref(false);
+
+// Claim flow
+const claiming = ref(false);
+const claimResult = ref(null);
+
+// Submit flow
+const submitting = ref(false);
+const submitResult = ref(null);
 
 const typeMeta = computed(() => {
   if (!task.value) return { label: '', tagType: 'default' };
@@ -206,15 +267,14 @@ async function loadTask() {
 }
 
 async function copyLink() {
-  if (!task.value?.share_link) return;
+  const link = claimResult.value?.shareLink || task.value?.share_link;
+  if (!link) return;
   try {
-    // 现代 API(需要 HTTPS 或 localhost)
     if (navigator.clipboard) {
-      await navigator.clipboard.writeText(task.value.share_link);
+      await navigator.clipboard.writeText(link);
     } else {
-      // 降级:execCommand(HTTP 环境可用)
       const textArea = document.createElement('textarea');
-      textArea.value = task.value.share_link;
+      textArea.value = link;
       textArea.style.position = 'fixed';
       textArea.style.opacity = '0';
       document.body.appendChild(textArea);
@@ -230,14 +290,58 @@ async function copyLink() {
   }
 }
 
-function onClaim() {
+async function getDeviceFp() {
+  try {
+    const fp = await FingerprintJS.load();
+    const result = await fp.get();
+    return result.visitorId;
+  } catch {
+    return 'fallback_' + Math.random().toString(36).slice(2) + '_' + Date.now();
+  }
+}
+
+async function onClaim() {
   if (!userStore.isLoggedIn) {
     showToast('请先登录');
     router.push({ name: 'login', query: { redirect: `/tasks/${route.params.id}` } });
     return;
   }
-  // 接单功能在阶段 5.5 实现(后端 /api/tasks/:id/claim 已就绪)
-  showToast('接单功能(阶段 5.5)即将上线');
+  claiming.value = true;
+  try {
+    const deviceFp = await getDeviceFp();
+    const res = await api.post(`/tasks/${route.params.id}/claim`, { deviceFp });
+    if (!res.ok) {
+      showFailToast(res.error || '接单失败');
+      return;
+    }
+    claimResult.value = res;
+    showToast({ message: '接单成功！请完成任务后提交', type: 'success' });
+    await loadTask();
+  } catch (err) {
+    showFailToast(err?.error || '接单失败');
+  } finally {
+    claiming.value = false;
+  }
+}
+
+async function onSubmit() {
+  if (!claimResult.value?.completionId) {
+    showFailToast('接单信息丢失,请刷新重试');
+    return;
+  }
+  submitting.value = true;
+  try {
+    const res = await api.post(`/completions/${claimResult.value.completionId}/submit`);
+    submitResult.value = res;
+    if (res.ok) {
+      showToast({ message: '验证通过！', type: 'success' });
+      await userStore.refreshMe();
+    }
+  } catch (err) {
+    submitResult.value = { ok: false, error: err?.error || '验证失败,请稍后再试' };
+  } finally {
+    submitting.value = false;
+  }
 }
 
 async function onCancelTask() {
@@ -249,7 +353,6 @@ async function onCancelTask() {
       cancelButtonText: '再想想'
     });
   } catch {
-    // 用户取消
     return;
   }
   try {
@@ -262,7 +365,6 @@ async function onCancelTask() {
       message: `✓ 已撤销,退还 ${res.refund} 积分`,
       type: 'success'
     });
-    // 刷新用户积分 + 回任务广场
     await userStore.refreshMe();
     setTimeout(() => router.replace('/tasks'), 1500);
   } catch (err) {
@@ -444,6 +546,59 @@ onMounted(() => {
   background: var(--card-bg);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
   z-index: 100;
+}
+
+/* 接单提示卡 */
+.claim-card {
+  margin: 12px;
+  padding: 16px;
+  background: rgba(26, 254, 73, 0.06);
+  border: 1px solid rgba(26, 254, 73, 0.2);
+  border-radius: 12px;
+}
+.claim-tip {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  color: var(--color-text-regular);
+  line-height: 1.6;
+}
+.claim-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* 提交结果 */
+.submit-result-card {
+  margin: 12px;
+  padding: 24px 16px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+.result-emoji {
+  font-size: 40px;
+  display: block;
+  margin-bottom: 8px;
+}
+.result-ok h3 {
+  margin: 0 0 8px;
+  color: var(--color-primary-dark);
+}
+.result-ok p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-regular);
+}
+.result-fail h3 {
+  margin: 0 0 8px;
+  color: var(--color-danger);
+}
+.result-fail p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-regular);
 }
 /* 桌面端居中跟 app-root 一致 */
 @media (min-width: 768px) {
