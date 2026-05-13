@@ -1,64 +1,62 @@
 <template>
-  <div class="login-page">
-    <van-nav-bar
-      title="登录"
-      left-arrow
-      @click-left="onBack"
-    />
+  <div class="auth-page">
+    <van-nav-bar left-arrow @click-left="onBack" />
 
-    <div class="content">
-      <header class="page-header">
-        <div class="brand-emoji">🎵</div>
-        <h1 class="page-title">欢迎回来</h1>
-        <p class="page-subtitle">用注册时的邮箱和密码登录</p>
-      </header>
+    <div class="auth-content">
+      <div class="logo-wrap">
+        <div class="logo">🎵</div>
+      </div>
+      <h1 class="auth-title">欢迎回来</h1>
+      <p class="auth-sub">登录你的汽水互推账号</p>
 
-      <van-form @submit="onSubmit" class="login-form">
-        <van-cell-group inset>
-          <van-field
-            v-model.trim="form.email"
-            name="email"
-            label="邮箱"
-            placeholder="example@qq.com"
+      <div class="form-wrap">
+        <div class="input-group">
+          <label class="input-label">邮箱</label>
+          <input
+            v-model.trim="email"
             type="email"
+            class="apple-input"
+            placeholder="your@email.com"
             autocomplete="email"
-            clearable
-            :rules="emailRules"
           />
-          <van-field
-            v-model="form.password"
-            name="password"
-            label="密码"
-            placeholder="请输入密码"
-            type="password"
-            autocomplete="current-password"
-            :rules="passwordRules"
-          />
-        </van-cell-group>
-
-        <div class="submit-block">
-          <van-button
-            block
-            type="primary"
-            native-type="submit"
-            :loading="submitting"
-            loading-text="登录中…"
-          >
-            登录
-          </van-button>
         </div>
 
-        <div class="form-links">
-          <span class="link-muted">还没账号?</span>
-          <a class="link" @click="goRegister">立即注册</a>
+        <div class="input-group">
+          <label class="input-label">密码</label>
+          <div class="pwd-row">
+            <input
+              v-model="password"
+              :type="showPwd ? 'text' : 'password'"
+              class="apple-input"
+              placeholder="输入密码"
+              autocomplete="current-password"
+              @keyup.enter="onLogin"
+            />
+            <span class="pwd-toggle" @click="showPwd = !showPwd">
+              {{ showPwd ? '🙈' : '👁️' }}
+            </span>
+          </div>
         </div>
-      </van-form>
+      </div>
+
+      <button
+        class="submit-btn"
+        :class="{ loading, disabled: !canLogin }"
+        :disabled="!canLogin || loading"
+        @click="onLogin"
+      >
+        {{ loading ? '登录中…' : '登录' }}
+      </button>
+
+      <p class="switch-text">
+        还没有账号？<a class="switch-link" @click="goRegister">立即注册</a>
+      </p>
     </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { showToast, showFailToast } from 'vant';
 import api from '@/api';
@@ -68,140 +66,67 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
-const form = reactive({
-  email: '',
-  password: ''
-});
+const email = ref('');
+const password = ref('');
+const showPwd = ref(false);
+const loading = ref(false);
 
-const submitting = ref(false);
+const canLogin = computed(() => email.value.includes('@') && password.value.length >= 8);
 
-const emailRules = [
-  { required: true, message: '请填写邮箱', trigger: 'onBlur' },
-  {
-    pattern: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
-    message: '邮箱格式不正确',
-    trigger: 'onBlur'
-  }
-];
-
-const passwordRules = [
-  { required: true, message: '请填写密码', trigger: 'onBlur' },
-  {
-    validator: v => typeof v === 'string' && v.length >= 6,
-    message: '密码至少 6 位',
-    trigger: 'onBlur'
-  }
-];
-
-async function onSubmit() {
-  if (submitting.value) return;
-  submitting.value = true;
+async function onLogin() {
+  if (!canLogin.value || loading.value) return;
+  loading.value = true;
   try {
-    const res = await api.post('/auth/login', {
-      email: form.email,
-      password: form.password
-    });
-    if (!res.ok) {
+    const res = await api.post('/auth/login', { email: email.value, password: password.value });
+    if (res.ok) {
+      userStore.setAuth(res.token, res.user);
+      showToast({ message: '登录成功', type: 'success' });
+      const redirect = route.query.redirect || '/';
+      router.replace(redirect.startsWith('/') ? redirect : '/');
+    } else {
       showFailToast(res.error || '登录失败');
-      return;
     }
-    userStore.setAuth(res.token, res.user);
-    showToast({ message: '登录成功', type: 'success' });
-
-    // 支持登录后跳回原页面(/login?redirect=/xxx)
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
-    // 安全:redirect 必须以 / 开头,避免开放重定向
-    router.replace(redirect.startsWith('/') ? redirect : '/');
-  } catch (err) {
-    showFailToast(err?.error || '登录失败,请稍后再试');
-  } finally {
-    submitting.value = false;
-  }
+  } catch (err) { showFailToast(err?.error || '登录失败'); }
+  finally { loading.value = false; }
 }
 
-function onBack() {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.replace('/');
-  }
-}
-
-function goRegister() {
-  // 保留 redirect 参数,注册成功也能跳回原页
-  const query = route.query.redirect ? { redirect: route.query.redirect } : {};
-  router.push({ name: 'register', query });
-}
+function onBack() { window.history.length > 1 ? router.back() : router.replace('/'); }
+function goRegister() { router.push({ name: 'register', query: route.query.redirect ? { redirect: route.query.redirect } : {} }); }
 </script>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  background: var(--page-bg);
+.auth-page { min-height: 100vh; background: var(--page-bg); }
+.auth-content { padding: 0 24px 60px; max-width: 400px; margin: 0 auto; }
+.logo-wrap { text-align: center; margin-bottom: 20px; }
+.logo {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 72px; height: 72px; border-radius: 20px;
+  background: var(--color-primary); font-size: 36px;
+  box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
 }
-
-.content {
-  padding: 16px 0 40px;
+.auth-title { text-align: center; font-size: 26px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 6px; letter-spacing: -0.5px; }
+.auth-sub { text-align: center; font-size: 14px; color: var(--color-text-secondary); margin: 0 0 32px; }
+.form-wrap { display: flex; flex-direction: column; gap: 18px; }
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-label { font-size: 13px; font-weight: 600; color: var(--color-text-regular); padding-left: 2px; }
+.apple-input {
+  width: 100%; height: 48px; padding: 0 16px; border: none; border-radius: 12px;
+  background: var(--card-bg); color: var(--color-text-primary); font-size: 16px;
+  outline: none; transition: box-shadow 0.2s; box-shadow: 0 0 0 1px var(--divider); -webkit-appearance: none;
 }
-
-.page-header {
-  text-align: center;
-  padding: 24px 16px 32px;
+.apple-input::placeholder { color: var(--color-text-disabled); }
+.apple-input:focus { box-shadow: 0 0 0 2px var(--color-primary); }
+.pwd-row { position: relative; }
+.pwd-row .apple-input { padding-right: 48px; }
+.pwd-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; cursor: pointer; user-select: none; }
+.submit-btn {
+  width: 100%; height: 52px; margin-top: 28px; border: none; border-radius: 14px;
+  background: var(--color-primary); color: var(--color-on-primary);
+  font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
 }
-
-.brand-emoji {
-  font-size: 48px;
-  margin-bottom: 12px;
-  /* 汽水绿背景圆形衬底,品牌点缀 */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  box-shadow: 0 4px 16px rgba(26, 254, 73, 0.3);
-}
-
-.page-title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.page-subtitle {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.login-form {
-  margin-top: 8px;
-}
-
-.submit-block {
-  margin: 24px 16px 0;
-}
-
-.form-links {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 13px;
-}
-
-.link-muted {
-  color: var(--color-text-secondary);
-  margin-right: 6px;
-}
-
-.link {
-  color: var(--color-primary-dark);
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.link:active {
-  opacity: 0.7;
-}
+.submit-btn:active { transform: scale(0.98); }
+.submit-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+.submit-btn.loading { opacity: 0.7; }
+.switch-text { text-align: center; margin-top: 20px; font-size: 14px; color: var(--color-text-secondary); }
+.switch-link { color: var(--color-primary-dark); font-weight: 600; cursor: pointer; }
 </style>

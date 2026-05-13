@@ -74,6 +74,12 @@ const routes = [
     component: () => import('@/views/NotificationsView.vue'),
     meta: { title: '消息通知', requiresAuth: true }
   },
+  {
+    path: '/agreement',
+    name: 'agreement',
+    component: () => import('@/views/AgreementView.vue'),
+    meta: { title: '用户协议' }
+  },
   // SPA 兜底:未匹配的全部回首页(用户刷新深层路由时不 404)
   {
     path: '/:catchAll(.*)',

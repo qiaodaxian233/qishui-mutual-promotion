@@ -1,106 +1,106 @@
 <template>
-  <div class="register-page">
-    <van-nav-bar
-      title="注册"
-      left-arrow
-      @click-left="onBack"
-    />
+  <div class="auth-page">
+    <van-nav-bar left-arrow @click-left="onBack" />
 
-    <div class="content">
-      <header class="page-header">
-        <div class="brand-emoji">🎵</div>
-        <h1 class="page-title">加入汽水音乐互推</h1>
-        <p class="page-subtitle">让独立音乐人互相听见 · 注册赠送 100 积分</p>
-      </header>
+    <div class="auth-content">
+      <!-- Logo -->
+      <div class="logo-wrap">
+        <div class="logo">🎵</div>
+      </div>
+      <h1 class="auth-title">创建账号</h1>
+      <p class="auth-sub">加入汽水音乐互推 · 注册送 100 积分</p>
 
-      <van-form @submit="onSubmit" class="register-form">
-        <van-cell-group inset>
-          <van-field
+      <!-- 表单 -->
+      <div class="form-wrap">
+        <div class="input-group">
+          <label class="input-label">邮箱</label>
+          <input
             v-model.trim="form.email"
-            name="email"
-            label="邮箱"
-            placeholder="example@qq.com"
             type="email"
+            class="apple-input"
+            placeholder="your@email.com"
             autocomplete="email"
-            clearable
-            :rules="emailRules"
           />
-          <van-field
-            v-model.trim="form.code"
-            name="code"
-            label="验证码"
-            placeholder="6 位验证码"
-            type="number"
-            maxlength="6"
-            :rules="codeRules"
-          >
-            <template #button>
-              <van-button
-                size="small"
-                type="primary"
-                :disabled="!canSendCode"
-                :loading="codeSending"
-                @click="onSendCode"
-              >
-                {{ countdown > 0 ? `${countdown}s 后重发` : '获取验证码' }}
-              </van-button>
-            </template>
-          </van-field>
-          <van-field
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">验证码</label>
+          <div class="code-row">
+            <input
+              v-model.trim="form.code"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              class="apple-input code-input"
+              placeholder="6 位数字"
+            />
+            <button
+              class="code-btn"
+              :class="{ disabled: !canSendCode }"
+              :disabled="!canSendCode"
+              @click="onSendCode"
+            >
+              {{ codeSending ? '发送中…' : countdown > 0 ? `${countdown}s` : '获取验证码' }}
+            </button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">昵称</label>
+          <input
             v-model.trim="form.nickname"
-            name="nickname"
-            label="昵称"
-            placeholder="2-20 字符"
+            type="text"
+            class="apple-input"
+            placeholder="给自己起个名字"
             maxlength="20"
-            show-word-limit
-            :rules="nicknameRules"
           />
-          <van-field
-            v-model="form.password"
-            name="password"
-            label="密码"
-            placeholder="8-64 位,含字母和数字"
-            :type="showPassword ? 'text' : 'password'"
-            autocomplete="new-password"
-            :rules="passwordRules"
-          >
-            <template #right-icon>
-              <van-icon
-                :name="showPassword ? 'eye' : 'closed-eye'"
-                @click="showPassword = !showPassword"
-              />
-            </template>
-          </van-field>
-        </van-cell-group>
+        </div>
 
-        <div class="tos-block">
-          <van-checkbox v-model="agreeTos" shape="square" icon-size="16px">
-            <span class="tos-text">
-              我已阅读并同意
-              <a class="link" @click.stop="showTos">《用户协议》</a>
-              真实互动、不刷量
+        <div class="input-group">
+          <label class="input-label">密码</label>
+          <div class="pwd-row">
+            <input
+              v-model="form.password"
+              :type="showPwd ? 'text' : 'password'"
+              class="apple-input"
+              placeholder="8 位以上，含字母和数字"
+              autocomplete="new-password"
+            />
+            <span class="pwd-toggle" @click="showPwd = !showPwd">
+              {{ showPwd ? '🙈' : '👁️' }}
             </span>
-          </van-checkbox>
+          </div>
         </div>
+      </div>
 
-        <div class="submit-block">
-          <van-button
-            block
-            type="primary"
-            native-type="submit"
-            :loading="submitting"
-            :disabled="!agreeTos"
-            loading-text="提交中…"
-          >
-            注册并登录
-          </van-button>
+      <!-- 协议 -->
+      <div class="tos-row">
+        <div
+          class="tos-check"
+          :class="{ checked: agreeTos }"
+          @click="agreeTos = !agreeTos"
+        >
+          <span v-if="agreeTos" class="check-icon">✓</span>
         </div>
+        <span class="tos-text">
+          我已阅读并同意
+          <a class="tos-link" @click.stop="$router.push('/agreement')">《用户协议》</a>
+        </span>
+      </div>
 
-        <div class="form-links">
-          <span class="link-muted">已有账号?</span>
-          <a class="link" @click="goLogin">直接登录</a>
-        </div>
-      </van-form>
+      <!-- 提交 -->
+      <button
+        class="submit-btn"
+        :class="{ loading: submitting, disabled: !canSubmit }"
+        :disabled="!canSubmit || submitting"
+        @click="onSubmit"
+      >
+        {{ submitting ? '注册中…' : '注册并登录' }}
+      </button>
+
+      <p class="switch-text">
+        已有账号？<a class="switch-link" @click="goLogin">直接登录</a>
+      </p>
     </div>
   </div>
 </template>
@@ -108,7 +108,7 @@
 <script setup>
 import { reactive, ref, computed, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { showToast, showFailToast, showConfirmDialog } from 'vant';
+import { showToast, showFailToast } from 'vant';
 import api from '@/api';
 import { useUserStore } from '@/stores/user';
 
@@ -116,243 +116,205 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
-const form = reactive({
-  email: '',
-  code: '',
-  nickname: '',
-  password: ''
-});
-
-const showPassword = ref(false);
+const form = reactive({ email: '', code: '', nickname: '', password: '' });
+const showPwd = ref(false);
 const agreeTos = ref(false);
 const submitting = ref(false);
 const codeSending = ref(false);
 const countdown = ref(0);
-let countdownTimer = null;
+let timer = null;
 
-// 邮箱校验复用
-const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const emailOk = computed(() => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email));
+const canSendCode = computed(() => countdown.value === 0 && emailOk.value && !codeSending.value);
+const canSubmit = computed(() =>
+  emailOk.value && form.code.length === 6 && form.nickname.length >= 2 && form.password.length >= 8 && agreeTos.value
+);
 
-const canSendCode = computed(() => {
-  return countdown.value === 0 && emailPattern.test(form.email) && !codeSending.value;
-});
-
-const emailRules = [
-  { required: true, message: '请填写邮箱', trigger: 'onBlur' },
-  { pattern: emailPattern, message: '邮箱格式不正确', trigger: 'onBlur' }
-];
-
-const codeRules = [
-  { required: true, message: '请填写验证码', trigger: 'onBlur' },
-  { pattern: /^\d{6}$/, message: '验证码为 6 位数字', trigger: 'onBlur' }
-];
-
-const nicknameRules = [
-  { required: true, message: '请填写昵称', trigger: 'onBlur' },
-  {
-    validator: v => typeof v === 'string' && v.trim().length >= 2 && v.trim().length <= 20,
-    message: '昵称 2-20 字符',
-    trigger: 'onBlur'
-  }
-];
-
-// 密码:8-64 位,含字母和数字(和后端 isValidPassword 对齐)
-const passwordRules = [
-  { required: true, message: '请填写密码', trigger: 'onBlur' },
-  {
-    validator: v => typeof v === 'string' && v.length >= 8 && v.length <= 64,
-    message: '密码长度 8-64 位',
-    trigger: 'onBlur'
-  },
-  {
-    validator: v => /[a-zA-Z]/.test(v) && /\d/.test(v),
-    message: '密码需同时包含字母和数字',
-    trigger: 'onBlur'
-  }
-];
-
-function startCountdown(seconds = 60) {
-  countdown.value = seconds;
-  countdownTimer = setInterval(() => {
-    countdown.value -= 1;
-    if (countdown.value <= 0) {
-      clearInterval(countdownTimer);
-      countdownTimer = null;
-    }
+function startCountdown() {
+  countdown.value = 60;
+  timer = setInterval(() => {
+    if (--countdown.value <= 0) clearInterval(timer);
   }, 1000);
 }
-
-onUnmounted(() => {
-  if (countdownTimer) clearInterval(countdownTimer);
-});
+onUnmounted(() => { if (timer) clearInterval(timer); });
 
 async function onSendCode() {
   if (!canSendCode.value) return;
-  if (!emailPattern.test(form.email)) {
-    showFailToast('请先填写正确邮箱');
-    return;
-  }
-
   codeSending.value = true;
   try {
-    const res = await api.post('/auth/send-code', {
-      email: form.email,
-      purpose: 'register'
-    });
-    if (!res.ok) {
+    const res = await api.post('/auth/send-code', { email: form.email, purpose: 'register' });
+    if (res.ok) {
+      showToast({ message: '验证码已发送', type: 'success' });
+      startCountdown();
+    } else {
       showFailToast(res.error || '发送失败');
-      return;
     }
-    showToast({ message: '验证码已发送,注意查收(含垃圾邮件)', type: 'success' });
-    startCountdown(60);
-  } catch (err) {
-    // 后端常见错误:邮箱已注册 / 临时邮箱 / 频率限制
-    showFailToast(err?.error || '发送失败,请稍后再试');
-  } finally {
-    codeSending.value = false;
-  }
+  } catch (err) { showFailToast(err?.error || '发送失败'); }
+  finally { codeSending.value = false; }
 }
 
 async function onSubmit() {
-  if (submitting.value) return;
-  if (!agreeTos.value) {
-    showFailToast('请先同意用户协议');
-    return;
-  }
-
+  if (!canSubmit.value || submitting.value) return;
   submitting.value = true;
   try {
     const res = await api.post('/auth/register', {
-      email: form.email,
-      code: form.code,
-      nickname: form.nickname.trim(),
-      password: form.password
+      email: form.email, code: form.code,
+      nickname: form.nickname.trim(), password: form.password
     });
-    if (!res.ok) {
+    if (res.ok) {
+      userStore.setAuth(res.token, res.user);
+      showToast({ message: '🎉 注册成功！送你 100 积分', type: 'success' });
+      const redirect = route.query.redirect || '/';
+      router.replace(redirect.startsWith('/') ? redirect : '/');
+    } else {
       showFailToast(res.error || '注册失败');
-      return;
     }
-    // 注册接口直接返回 token + user(注册即登录)
-    userStore.setAuth(res.token, res.user);
-    showToast({ message: '注册成功!赠送 100 积分', type: 'success' });
-
-    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/';
-    router.replace(redirect.startsWith('/') ? redirect : '/');
-  } catch (err) {
-    showFailToast(err?.error || '注册失败,请稍后再试');
-  } finally {
-    submitting.value = false;
-  }
+  } catch (err) { showFailToast(err?.error || '注册失败'); }
+  finally { submitting.value = false; }
 }
 
-function showTos() {
-  showConfirmDialog({
-    title: '用户协议(简化版)',
-    message: [
-      '1. 真实互动:接单需亲自去汽水音乐听歌/点赞,严禁使用脚本或模拟器',
-      '2. 凭良心:作弊行为一经核实,扣除信用分,严重者封号',
-      '3. 积分非现金:不可提现、不可转让、不与人民币挂钩',
-      '4. 内容合规:发布的歌曲需为合法上架内容',
-      '5. 隐私:邮箱仅用于登录与验证,IP 经哈希后存储,不外传'
-    ].join('\n\n'),
-    confirmButtonText: '我知道了',
-    showCancelButton: false,
-    messageAlign: 'left'
-  });
-}
-
-function onBack() {
-  if (window.history.length > 1) {
-    router.back();
-  } else {
-    router.replace('/');
-  }
-}
-
-function goLogin() {
-  const query = route.query.redirect ? { redirect: route.query.redirect } : {};
-  router.push({ name: 'login', query });
-}
+function onBack() { window.history.length > 1 ? router.back() : router.replace('/'); }
+function goLogin() { router.push({ name: 'login', query: route.query.redirect ? { redirect: route.query.redirect } : {} }); }
 </script>
 
 <style scoped>
-.register-page {
+.auth-page {
   min-height: 100vh;
   background: var(--page-bg);
 }
-
-.content {
-  padding: 16px 0 40px;
+.auth-content {
+  padding: 0 24px 60px;
+  max-width: 400px;
+  margin: 0 auto;
 }
 
-.page-header {
-  text-align: center;
-  padding: 24px 16px 28px;
-}
-
-.brand-emoji {
-  font-size: 48px;
-  margin-bottom: 12px;
+/* Logo */
+.logo-wrap { text-align: center; margin-bottom: 20px; }
+.logo {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
+  width: 72px; height: 72px;
+  border-radius: 20px;
   background: var(--color-primary);
-  box-shadow: 0 4px 16px rgba(26, 254, 73, 0.3);
+  font-size: 36px;
+  box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
 }
-
-.page-title {
-  margin: 0;
-  font-size: 22px;
+.auth-title {
+  text-align: center;
+  font-size: 26px;
   font-weight: 700;
   color: var(--color-text-primary);
+  margin: 0 0 6px;
+  letter-spacing: -0.5px;
 }
-
-.page-subtitle {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
-.register-form {
-  margin-top: 8px;
-}
-
-.tos-block {
-  margin: 16px 24px 0;
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.tos-text {
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.submit-block {
-  margin: 20px 16px 0;
-}
-
-.form-links {
-  margin-top: 16px;
+.auth-sub {
   text-align: center;
-  font-size: 13px;
-}
-
-.link-muted {
+  font-size: 14px;
   color: var(--color-text-secondary);
-  margin-right: 6px;
+  margin: 0 0 28px;
 }
 
-.link {
-  color: var(--color-primary-dark);
-  cursor: pointer;
+/* 表单 */
+.form-wrap { display: flex; flex-direction: column; gap: 18px; }
+.input-group { display: flex; flex-direction: column; gap: 6px; }
+.input-label {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--color-text-regular);
+  padding-left: 2px;
+}
+.apple-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--color-text-primary);
+  font-size: 16px;
+  outline: none;
+  transition: box-shadow 0.2s;
+  box-shadow: 0 0 0 1px var(--divider);
+  -webkit-appearance: none;
+}
+.apple-input::placeholder { color: var(--color-text-disabled); }
+.apple-input:focus { box-shadow: 0 0 0 2px var(--color-primary); }
+
+/* 验证码行 */
+.code-row { display: flex; gap: 10px; }
+.code-input { flex: 1; }
+.code-btn {
+  flex-shrink: 0;
+  height: 48px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.code-btn:active { opacity: 0.8; }
+.code-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 密码行 */
+.pwd-row { position: relative; }
+.pwd-row .apple-input { padding-right: 48px; }
+.pwd-toggle {
+  position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 18px; cursor: pointer; user-select: none;
 }
 
-.link:active {
-  opacity: 0.7;
+/* 协议 */
+.tos-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 20px; padding: 0 2px;
 }
+.tos-check {
+  width: 20px; height: 20px;
+  border-radius: 6px;
+  border: 2px solid var(--color-text-disabled);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all 0.15s;
+  flex-shrink: 0;
+}
+.tos-check.checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.check-icon { color: #fff; font-size: 12px; font-weight: 700; }
+.tos-text { font-size: 13px; color: var(--color-text-secondary); }
+.tos-link { color: var(--color-primary-dark); font-weight: 600; cursor: pointer; }
+
+/* 提交按钮 */
+.submit-btn {
+  width: 100%;
+  height: 52px;
+  margin-top: 24px;
+  border: none;
+  border-radius: 14px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 17px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.5px;
+}
+.submit-btn:active { transform: scale(0.98); }
+.submit-btn.disabled { opacity: 0.4; cursor: not-allowed; }
+.submit-btn.loading { opacity: 0.7; }
+
+/* 切换链接 */
+.switch-text {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+.switch-link { color: var(--color-primary-dark); font-weight: 600; cursor: pointer; }
 </style>
