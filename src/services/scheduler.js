@@ -15,13 +15,31 @@ const parser = require('./qishui-parser');
 
 const RECHECK_INTERVAL_MS = 10 * 60 * 1000;   // 10 分钟
 const EXPIRY_INTERVAL_MS = 30 * 60 * 1000;    // 30 分钟
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000;    // 5 分钟刷新互动数
 const RECHECK_BATCH_SIZE = 50;
-const CLAIM_TIMEOUT_MINUTES = 30;              // 接单后 30 分钟不提交就超时
+const CLAIM_TIMEOUT_MINUTES = 30;
+
+// 智能刷新:有人用就快,没人用就慢
+const REFRESH_FAST_MS = 2 * 60 * 1000;        // 有活跃用户:2 分钟
+const REFRESH_SLOW_MS = 30 * 60 * 1000;       // 无人使用:30 分钟
+const ACTIVE_THRESHOLD_MS = 5 * 60 * 1000;    // 5 分钟内有请求算活跃
+
+let lastActivityAt = 0;                        // 最后一次 API 请求时间
+let lastRefreshAt = 0;                         // 最后一次刷新时间
+
+/**
+ * 外部调用:记录用户活跃(在 server.js 的中间件里调)
+ */
+function recordActivity() {
+  lastActivityAt = Date.now();
+}
+
+function isActive() {
+  return (Date.now() - lastActivityAt) < ACTIVE_THRESHOLD_MS;
+}
 
 let recheckTimer = null;
 let expiryTimer = null;
-let refreshTimer = null;
+let smartTimer = null;
 
 function startScheduler() {
   console.log('[scheduler] 启动定时任务');
@@ -35,7 +53,16 @@ function startScheduler() {
       runClaimTimeoutJob();
     }, RECHECK_INTERVAL_MS);
     expiryTimer = setInterval(runTaskExpiryJob, EXPIRY_INTERVAL_MS);
-    refreshTimer = setInterval(runInteractionRefreshJob, REFRESH_INTERVAL_MS);
+
+    // 智能刷新:每分钟检查一次是否该刷新
+    smartTimer = setInterval(() => {
+      const now = Date.now();
+      const interval = isActive() ? REFRESH_FAST_MS : REFRESH_SLOW_MS;
+      if (now - lastRefreshAt >= interval) {
+        lastRefreshAt = now;
+        runInteractionRefreshJob();
+      }
+    }, 60 * 1000);
   }, 30 * 1000);
 }
 
@@ -176,10 +203,10 @@ async function runTaskExpiryJob() {
 function stopScheduler() {
   if (recheckTimer) clearInterval(recheckTimer);
   if (expiryTimer) clearInterval(expiryTimer);
-  if (refreshTimer) clearInterval(refreshTimer);
+  if (smartTimer) clearInterval(smartTimer);
   recheckTimer = null;
   expiryTimer = null;
-  refreshTimer = null;
+  smartTimer = null;
 }
 
 /**
@@ -226,4 +253,4 @@ async function runInteractionRefreshJob() {
   }
 }
 
-module.exports = { startScheduler, stopScheduler, runRecheckJob, runClaimTimeoutJob, runTaskExpiryJob, runInteractionRefreshJob };
+module.exports = { startScheduler, stopScheduler, recordActivity, runRecheckJob, runClaimTimeoutJob, runTaskExpiryJob, runInteractionRefreshJob };

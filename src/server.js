@@ -23,6 +23,8 @@ app.use(generalLimiter);
 // 请求日志(简易版)
 app.use((req, res, next) => {
   const start = Date.now();
+  // 记录用户活跃(用于智能刷新频率)
+  require('./services/scheduler').recordActivity();
   res.on('finish', () => {
     const ms = Date.now() - start;
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} ${res.statusCode} ${ms}ms`);

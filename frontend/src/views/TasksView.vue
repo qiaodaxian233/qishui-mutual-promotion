@@ -261,21 +261,36 @@ function onPublish() {
 
 // keep-alive 友好:每次回到这个页面都刷一次
 onActivated(() => {
-  // 回到页面时立即刷新一次
   if (tasks.value.length > 0) {
     refreshSilently();
   }
-  // 每 30 秒自动刷新
-  refreshTimer = setInterval(refreshSilently, 30 * 1000);
+  startAutoRefresh();
 });
 
 onDeactivated(() => {
-  // 离开页面停止刷新
-  if (refreshTimer) {
-    clearInterval(refreshTimer);
-    refreshTimer = null;
-  }
+  stopAutoRefresh();
 });
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  refreshTimer = setInterval(refreshSilently, 30 * 1000);
+  // 页面不可见时暂停
+  document.addEventListener('visibilitychange', onVisibilityChange);
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+}
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  } else {
+    refreshSilently();
+    refreshTimer = setInterval(refreshSilently, 30 * 1000);
+  }
+}
 
 async function refreshSilently() {
   try {
