@@ -5,6 +5,26 @@
     <van-empty v-if="forbidden" description="需要管理员权限" image-size="120" />
 
     <template v-else>
+      <!-- 快捷操作 -->
+      <div class="quick-actions">
+        <div class="action-btn" @click="$router.push('/admin/welfare')">
+          <span class="action-icon">🎁</span>
+          <span class="action-text">批量发布福利</span>
+        </div>
+        <div class="action-btn" @click="$router.push('/tasks/publish')">
+          <span class="action-icon">📝</span>
+          <span class="action-text">发布任务</span>
+        </div>
+        <div class="action-btn" @click="$router.push('/tasks')">
+          <span class="action-icon">📋</span>
+          <span class="action-text">任务广场</span>
+        </div>
+        <div class="action-btn" @click="$router.push('/notifications')">
+          <span class="action-icon">🔔</span>
+          <span class="action-text">消息通知</span>
+        </div>
+      </div>
+
       <van-tabs v-model:active="activeTab" sticky offset-top="46" shrink>
         <van-tab name="stats" title="数据统计" />
         <van-tab name="users" title="用户" />
@@ -215,6 +235,29 @@ onMounted(() => { loadStats(); });
 .admin-page { min-height: 100vh; background: var(--page-bg); padding-bottom: 30px; }
 .tab-body { padding: 12px; }
 .loading-hint { text-align: center; padding: 40px; color: var(--color-text-secondary); }
+
+/* 快捷操作 */
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px;
+}
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 4px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+  transition: transform .12s;
+}
+.action-btn:active { transform: scale(.95); }
+.action-icon { font-size: 26px; }
+.action-text { font-size: 11px; color: var(--color-text-primary); font-weight: 500; }
 
 /* 统计网格 */
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }

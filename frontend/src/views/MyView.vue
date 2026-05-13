@@ -32,6 +32,29 @@
         </div>
       </section>
 
+      <!-- 功能入口 -->
+      <section class="menu-card">
+        <van-cell title="📝 个人资料" is-link @click="$router.push('/profile')" />
+        <van-cell title="🔔 消息通知" is-link @click="$router.push('/notifications')">
+          <template #value>
+            <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </template>
+        </van-cell>
+        <van-cell title="💰 积分明细" is-link @click="$router.push('/points')" />
+        <van-cell
+          v-if="userStore.user?.role === 'admin'"
+          title="🔧 管理后台"
+          is-link
+          @click="$router.push('/admin/dashboard')"
+        />
+        <van-cell
+          v-if="userStore.user?.role === 'admin'"
+          title="🎁 批量发布福利任务"
+          is-link
+          @click="$router.push('/admin/welfare')"
+        />
+      </section>
+
       <!-- Tab 切换 -->
       <van-tabs
         v-model:active="activeTab"
@@ -141,29 +164,6 @@
           </van-list>
         </van-pull-refresh>
       </div>
-
-      <!-- 功能入口 -->
-      <section class="menu-card">
-        <van-cell title="📝 个人资料" is-link @click="$router.push('/profile')" />
-        <van-cell title="🔔 消息通知" is-link @click="$router.push('/notifications')">
-          <template #value>
-            <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
-          </template>
-        </van-cell>
-        <van-cell title="💰 积分明细" is-link @click="$router.push('/points')" />
-        <van-cell
-          v-if="userStore.user?.role === 'admin'"
-          title="🔧 管理后台"
-          is-link
-          @click="$router.push('/admin/dashboard')"
-        />
-        <van-cell
-          v-if="userStore.user?.role === 'admin'"
-          title="🎁 福利任务发布"
-          is-link
-          @click="$router.push('/admin/welfare')"
-        />
-      </section>
 
       <!-- 退出登录 -->
       <div class="logout-wrap">
