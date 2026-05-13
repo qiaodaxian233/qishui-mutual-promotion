@@ -159,7 +159,7 @@ onMounted(async () => {
 .points-value {
   font-size: 28px;
   font-weight: 700;
-  color: var(--color-primary);
+  color: var(--color-primary-dark);
 }
 
 .guest-cta {
@@ -171,7 +171,9 @@ onMounted(async () => {
 }
 
 .health-indicator {
-  position: fixed;
+  /* 用 absolute 锚到 .app-root(它有 position:relative + max-width:480),
+     避免在桌面端宽屏下 fixed 把指示器贴到视口右下,跑到容器外面 */
+  position: absolute;
   bottom: 16px;
   right: 16px;
   font-size: 11px;
@@ -179,6 +181,8 @@ onMounted(async () => {
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.05);
   color: var(--color-text-secondary);
+  z-index: 10;
+  pointer-events: none;
 }
 
 .health-ok {

@@ -1,14 +1,17 @@
 /**
  * 全局样式
- * 设计语言:汽水橙(#ff6b35)+ 中性灰
+ * 设计语言:汽水绿(#1AFE49 高饱和荧光绿)+ 深色文字 + 中性灰底
+ * 决策:主色用 #1AFE49 强烈品牌识别,但按钮上文字用深色(#0a0a0a)
+ *      因为白字在亮绿上对比度太差(<2:1),深字反而对比度 14:1
  */
 
 /* ===== CSS 变量 ===== */
 :root {
-  /* 品牌色 */
-  --color-primary: #ff6b35;
-  --color-primary-light: #ff8a5c;
-  --color-primary-dark: #e55a28;
+  /* 品牌色 - 汽水绿 */
+  --color-primary: #1AFE49;
+  --color-primary-light: #6dff8a;
+  --color-primary-dark: #0EBA37;
+  --color-on-primary: #0a0a0a;  /* 主色上的文字色,深色保证可读 */
 
   /* 文字 */
   --color-text-primary: #1a1a1a;
@@ -21,15 +24,18 @@
   --card-bg: #ffffff;
   --divider: #ebedf0;
 
-  /* 状态 */
-  --color-success: #07c160;
+  /* 状态(成功色用主色,因为成功 = 绿色 = 主色,统一品牌) */
+  --color-success: var(--color-primary-dark);
   --color-warning: #ff9500;
   --color-danger: #ee0a24;
 
-  /* Vant 主题覆盖 */
-  --van-primary-color: var(--color-primary);
+  /* ===== Vant 4 主题覆盖 =====
+     注意:Vant 4 用的是 --van-* 命名
+     button 主按钮的背景/边框/文字要分开设 */
+  --van-primary-color: var(--color-primary-dark);  /* 整体主色用 dark 版本,确保链接/小字可读 */
   --van-button-primary-background: var(--color-primary);
   --van-button-primary-border-color: var(--color-primary);
+  --van-button-primary-color: var(--color-on-primary);
 }
 
 /* ===== reset ===== */
@@ -56,7 +62,7 @@ body {
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--color-primary-dark);  /* 链接用 dark 版,正文里可读 */
   text-decoration: none;
 }
 
@@ -75,7 +81,7 @@ img {
 }
 
 .text-primary {
-  color: var(--color-primary);
+  color: var(--color-primary-dark);
 }
 
 .text-center {
@@ -87,12 +93,16 @@ img {
 .mt-24 { margin-top: 24px; }
 .mt-32 { margin-top: 32px; }
 
-/* ===== 桌面端适配:大屏时居中显示成"手机宽" ===== */
+/* ===== 桌面端适配:大屏时居中显示成"手机宽" =====
+   注意:max-width 480 + position:relative 让子组件 position:absolute 锚到这个容器,
+        而不是 viewport,这样 health-indicator 等浮动元素就不会跑到 480 外面 */
 @media (min-width: 768px) {
   .app-root {
     max-width: 480px;
     margin: 0 auto;
     box-shadow: 0 0 24px rgba(0, 0, 0, 0.05);
     min-height: 100vh;
+    position: relative;
+    overflow: hidden;
   }
 }
