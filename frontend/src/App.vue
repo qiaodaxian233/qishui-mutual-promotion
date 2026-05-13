@@ -27,7 +27,9 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import api from '@/api';
+import { useTheme } from '@/composables/useTheme';
 
+const { isDark, toggleTheme } = useTheme();
 const router = useRouter();
 const route = useRoute();
 

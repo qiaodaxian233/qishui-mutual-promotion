@@ -1,145 +1,136 @@
 /**
- * 全局样式
- * 设计语言:汽水绿(#1AFE49 高饱和荧光绿)+ 深色文字 + 中性灰底
- * 决策:主色用 #1AFE49 强烈品牌识别,但按钮上文字用深色(#0a0a0a)
- *      因为白字在亮绿上对比度太差(<2:1),深字反而对比度 14:1
+ * Apple 简约风 + 自动暗色模式
+ * 主题切换: 手动 > 系统偏好 > 时间(18:00-6:00 暗色)
  */
 
-/* ===== CSS 变量 ===== */
 :root {
-  /* 品牌色 - 汽水绿 */
-  --color-primary: #1AFE49;
-  --color-primary-light: #6dff8a;
-  --color-primary-dark: #0EBA37;
-  --color-on-primary: #0a0a0a;  /* 主色上的文字色,深色保证可读 */
-
-  /* 文字 */
-  --color-text-primary: #1a1a1a;
-  --color-text-regular: #555;
-  --color-text-secondary: #888;
-  --color-text-disabled: #bbb;
-
-  /* 背景 */
-  --page-bg: #f7f8fa;
+  --color-primary: #34C759;
+  --color-primary-light: #6ee78a;
+  --color-primary-dark: #248A3D;
+  --color-on-primary: #ffffff;
+  --color-text-primary: #1c1c1e;
+  --color-text-regular: #3a3a3c;
+  --color-text-secondary: #8e8e93;
+  --color-text-disabled: #c7c7cc;
+  --page-bg: #f2f2f7;
   --card-bg: #ffffff;
-  --divider: #ebedf0;
-
-  /* 状态(成功色用主色,因为成功 = 绿色 = 主色,统一品牌) */
-  --color-success: var(--color-primary-dark);
-  --color-warning: #ff9500;
-  --color-danger: #ee0a24;
-
-  /* ===== Vant 4 主题覆盖 =====
-     注意:Vant 4 用的是 --van-* 命名
-     button 主按钮的背景/边框/文字要分开设 */
-  --van-primary-color: var(--color-primary-dark);  /* 整体主色用 dark 版本,确保链接/小字可读 */
+  --card-bg-elevated: #ffffff;
+  --divider: rgba(60, 60, 67, 0.08);
+  --blur-bg: rgba(255, 255, 255, 0.72);
+  --color-success: #34C759;
+  --color-warning: #FF9500;
+  --color-danger: #FF3B30;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --van-primary-color: var(--color-primary-dark);
   --van-button-primary-background: var(--color-primary);
   --van-button-primary-border-color: var(--color-primary);
   --van-button-primary-color: var(--color-on-primary);
-
-  /* Tag 主题:标签是次要信息(如信用分、状态),
-     用淡绿底 + 深绿字,不抢主按钮的戏 */
   --van-tag-primary-color: var(--color-primary-dark);
-  --van-tag-primary-background-color: rgba(26, 254, 73, 0.15);
-
-  /* Toast 成功 / Notify 等用主色变体 */
+  --van-tag-primary-background-color: rgba(52,199,89,0.12);
   --van-toast-loading-icon-color: var(--color-primary-dark);
-
-  /* NavBar 图标/文字色(避免 VantResolver 覆盖) */
   --van-nav-bar-icon-color: var(--color-primary-dark);
   --van-nav-bar-text-color: var(--color-primary-dark);
 }
 
-/* ===== Vant 组件直接覆盖(VantResolver 按需加载会在 :root 层冲掉变量覆盖,
-   这里用 class 选择器确保优先级不被吃掉) ===== */
-
-/* 主按钮:汽水绿 */
-.van-button--primary {
-  background: var(--color-primary) !important;
-  border-color: var(--color-primary) !important;
-  color: var(--color-on-primary) !important;
-}
-/* plain 变体 */
-.van-button--plain.van-button--primary {
-  color: var(--color-primary-dark) !important;
-  background: var(--card-bg, #fff) !important;
-}
-
-/* Tag primary:淡绿底深绿字 */
-.van-tag--primary {
-  background: rgba(26, 254, 73, 0.15) !important;
-  color: var(--color-primary-dark) !important;
-}
-.van-tag--primary.van-tag--plain {
-  color: var(--color-primary-dark) !important;
-  background: var(--card-bg, #fff) !important;
-}
-
-/* ===== reset ===== */
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+/* ===== 暗色模式 ===== */
+[data-theme="dark"] {
+  --color-primary: #30D158;
+  --color-primary-light: #5ae07a;
+  --color-primary-dark: #30D158;
+  --color-on-primary: #000000;
+  --color-text-primary: #f5f5f7;
+  --color-text-regular: #d1d1d6;
+  --color-text-secondary: #8e8e93;
+  --color-text-disabled: #636366;
+  --page-bg: #000000;
+  --card-bg: #1c1c1e;
+  --card-bg-elevated: #2c2c2e;
+  --divider: rgba(84,84,88,0.36);
+  --blur-bg: rgba(28,28,30,0.72);
+  --color-success: #30D158;
+  --color-warning: #FF9F0A;
+  --color-danger: #FF453A;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+  --van-primary-color: var(--color-primary);
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-primary: #30D158;
+    --color-primary-light: #5ae07a;
+    --color-primary-dark: #30D158;
+    --color-on-primary: #000000;
+    --color-text-primary: #f5f5f7;
+    --color-text-regular: #d1d1d6;
+    --color-text-secondary: #8e8e93;
+    --color-text-disabled: #636366;
+    --page-bg: #000000;
+    --card-bg: #1c1c1e;
+    --card-bg-elevated: #2c2c2e;
+    --divider: rgba(84,84,88,0.36);
+    --blur-bg: rgba(28,28,30,0.72);
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+    --van-primary-color: var(--color-primary);
+  }
+}
+
+/* Vant 覆盖 */
+.van-button--primary { background: var(--color-primary) !important; border-color: var(--color-primary) !important; color: var(--color-on-primary) !important; font-weight: 600 !important; }
+.van-button--plain.van-button--primary { color: var(--color-primary-dark) !important; background: var(--card-bg) !important; }
+.van-tag--primary { background: rgba(52,199,89,0.12) !important; color: var(--color-primary-dark) !important; }
+.van-tag--primary.van-tag--plain { color: var(--color-primary-dark) !important; background: var(--card-bg) !important; }
+
+/* 毛玻璃 NavBar + TabBar */
+.van-nav-bar { backdrop-filter: saturate(180%) blur(20px) !important; -webkit-backdrop-filter: saturate(180%) blur(20px) !important; background: var(--blur-bg) !important; border-bottom: 0.5px solid var(--divider) !important; }
+.van-tabbar { backdrop-filter: saturate(180%) blur(20px) !important; -webkit-backdrop-filter: saturate(180%) blur(20px) !important; background: var(--blur-bg) !important; border-top: 0.5px solid var(--divider) !important; }
+
+/* 暗色 Vant 适配 */
+[data-theme="dark"] .van-nav-bar, [data-theme="dark"] .van-nav-bar__title { color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-cell { background: var(--card-bg) !important; color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-cell::after { border-color: var(--divider) !important; }
+[data-theme="dark"] .van-field__control { color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-tabs__nav { background: var(--card-bg) !important; }
+[data-theme="dark"] .van-tab { color: var(--color-text-secondary) !important; }
+[data-theme="dark"] .van-tab--active { color: var(--color-primary) !important; }
+[data-theme="dark"] .van-search { background: var(--page-bg) !important; }
+[data-theme="dark"] .van-search__content { background: var(--card-bg) !important; }
+[data-theme="dark"] .van-dialog { background: var(--card-bg-elevated) !important; color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-empty__description { color: var(--color-text-secondary) !important; }
+[data-theme="dark"] .van-list__finished-text { color: var(--color-text-disabled) !important; }
+[data-theme="dark"] .van-notice-bar { background: var(--card-bg-elevated) !important; color: var(--color-text-regular) !important; }
+[data-theme="dark"] .van-stepper button { background: var(--card-bg-elevated) !important; color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-stepper__input { background: var(--card-bg) !important; color: var(--color-text-primary) !important; }
+
+/* Reset */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
-  margin: 0;
-  padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
-               'Microsoft YaHei', 'Segoe UI', Roboto, sans-serif;
+  margin: 0; padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   font-size: 14px;
   color: var(--color-text-primary);
   background: var(--page-bg);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
+body { -webkit-text-size-adjust: 100%; }
+a { color: var(--color-primary-dark); text-decoration: none; }
+img { display: block; max-width: 100%; }
 
-body {
-  /* 防止 iOS 输入聚焦时页面缩放 */
-  -webkit-text-size-adjust: 100%;
-}
-
-a {
-  color: var(--color-primary-dark);  /* 链接用 dark 版,正文里可读 */
-  text-decoration: none;
-}
-
-img {
-  display: block;
-  max-width: 100%;
-}
-
-/* ===== 通用类 ===== */
-.page-padding {
-  padding: 16px;
-}
-
-.text-secondary {
-  color: var(--color-text-secondary);
-}
-
-.text-primary {
-  color: var(--color-primary-dark);
-}
-
-.text-center {
-  text-align: center;
-}
-
-.mt-8  { margin-top: 8px; }
+/* 通用类 */
+.mt-8 { margin-top: 8px; }
 .mt-16 { margin-top: 16px; }
 .mt-24 { margin-top: 24px; }
 .mt-32 { margin-top: 32px; }
 
-/* ===== 桌面端适配:大屏时居中显示成"手机宽" =====
-   注意:max-width 480 + position:relative 让子组件 position:absolute 锚到这个容器,
-        而不是 viewport,这样 health-indicator 等浮动元素就不会跑到 480 外面 */
 @media (min-width: 768px) {
-  .app-root {
-    max-width: 480px;
-    margin: 0 auto;
-    box-shadow: 0 0 24px rgba(0, 0, 0, 0.05);
-    min-height: 100vh;
-    position: relative;
-    overflow: hidden;
-  }
+  .app-root { max-width: 480px; margin: 0 auto; box-shadow: var(--shadow-lg); min-height: 100vh; position: relative; overflow: hidden; }
 }

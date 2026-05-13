@@ -41,6 +41,7 @@
           </template>
         </van-cell>
         <van-cell title="💰 积分明细" is-link @click="$router.push('/points')" />
+        <van-cell :title="isDark ? '☀️ 切换亮色' : '🌙 切换暗色'" is-link @click="toggleTheme" />
         <van-cell
           v-if="userStore.user?.role === 'admin'"
           title="🔧 管理后台"
@@ -180,9 +181,11 @@ import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import api from '@/api';
 import { useUserStore } from '@/stores/user';
+import { useTheme } from '@/composables/useTheme';
 
 const router = useRouter();
 const userStore = useUserStore();
+const { isDark, toggleTheme } = useTheme();
 
 const activeTab = ref('published');
 const PAGE_SIZE = 20;
