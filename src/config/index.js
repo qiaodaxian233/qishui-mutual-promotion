@@ -1,8 +1,12 @@
 /**
  * 环境变量集中加载
  * 启动时校验必填项,提前暴露配置错误
+ *
+ * 用绝对路径加载 .env,无论从哪个目录启动都能正确找到
+ * (PM2 的 cwd 可能不是项目目录,默认 dotenv.config() 会失效)
  */
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 
 const required = ['DB_PASSWORD', 'SMTP_USER', 'SMTP_PASS', 'IP_HASH_SALT'];
 const missing = required.filter(k => !process.env[k]);

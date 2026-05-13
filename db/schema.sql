@@ -39,10 +39,11 @@ CREATE TABLE `users` (
   `banned_at`         DATETIME        DEFAULT NULL,
 
   -- 反作弊
-  `register_ip`       VARCHAR(45)     DEFAULT NULL            COMMENT '注册 IP(支持 IPv6)',
+  -- IP 字段存 SHA256(salt + ip) hash,固定 64 字符,不存原始 IP
+  `register_ip`       CHAR(64)        DEFAULT NULL            COMMENT 'SHA256 哈希后的注册 IP',
   `register_ua`       VARCHAR(500)    DEFAULT NULL            COMMENT '注册 User-Agent',
   `last_login_at`     DATETIME        DEFAULT NULL,
-  `last_login_ip`     VARCHAR(45)     DEFAULT NULL,
+  `last_login_ip`     CHAR(64)        DEFAULT NULL            COMMENT 'SHA256 哈希后的登录 IP',
 
   `created_at`        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at`        DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -79,7 +80,7 @@ CREATE TABLE `email_verifications` (
   `purpose`    ENUM('register','reset_password','change_email') NOT NULL,
   `expires_at` DATETIME        NOT NULL              COMMENT '30 分钟后过期',
   `used_at`    DATETIME        DEFAULT NULL          COMMENT '使用时间(null=未使用)',
-  `ip`         VARCHAR(45)     DEFAULT NULL          COMMENT '请求 IP(防刷)',
+  `ip`         CHAR(64)        DEFAULT NULL          COMMENT 'SHA256 哈希后的请求 IP(防刷)',
   `created_at` DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   PRIMARY KEY (`id`),

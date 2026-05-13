@@ -15,6 +15,7 @@ const auth = require('../services/auth');
 const emailVerification = require('../services/email-verification');
 const { getClientIp, getUserAgent } = require('../utils/request');
 const { isValidEmail, isValidPassword, isValidNickname, isValidCode } = require('../utils/validate');
+const { sha256WithSalt } = require('../utils/crypto');
 const { requireAuth } = require('../middlewares/auth');
 const { strictLimiter, loginLimiter } = require('../middlewares/rate-limit');
 
@@ -55,7 +56,8 @@ router.post('/send-code', strictLimiter, async (req, res) => {
   }
 
   const ip = getClientIp(req);
-  const result = await emailVerification.sendCode({ email, purpose, ip });
+  const ipHash = ip ? sha256WithSalt(ip) : null;
+  const result = await emailVerification.sendCode({ email, purpose, ip: ipHash });
 
   if (!result.ok) {
     return res.status(400).json(result);

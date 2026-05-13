@@ -1,6 +1,6 @@
 {
   "name": "qishui-mutual-promotion",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "汽水音乐独立音乐人互推平台",
   "main": "src/server.js",
   "scripts": {
