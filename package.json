@@ -1,0 +1,23 @@
+{
+  "name": "qishui-mutual-promotion",
+  "version": "0.2.0",
+  "description": "汽水音乐独立音乐人互推平台",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "init-db": "node scripts/init-db.js",
+    "import-disposable": "node scripts/import-disposable-domains.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mysql2": "^3.11.5",
+    "bcryptjs": "^2.4.3",
+    "nodemailer": "^6.9.16",
+    "dotenv": "^16.4.7",
+    "express-rate-limit": "^7.5.0"
+  },
+  "author": "qiaodaxian233",
+  "license": "UNLICENSED",
+  "private": true
+}
