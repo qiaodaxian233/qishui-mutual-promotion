@@ -176,14 +176,36 @@
           回到任务广场
         </van-button>
         <!-- 自己发布的 -->
-        <van-button
-          v-else-if="isOwnTask"
-          block
-          plain
-          @click="onCancelTask"
-        >
-          撤销我发布的任务
-        </van-button>
+        <template v-else-if="isOwnTask">
+          <div class="owner-actions">
+            <van-button
+              v-if="task.status === 'active' && !task.is_pinned"
+              block
+              type="warning"
+              round
+              :loading="pinning"
+              @click="onPinTask"
+            >
+              📌 置顶（50 积分）· 歌名金色流光
+            </van-button>
+            <van-button
+              v-if="task.is_pinned"
+              block
+              disabled
+              round
+            >
+              ✨ 已置顶
+            </van-button>
+            <van-button
+              block
+              plain
+              round
+              @click="onCancelTask"
+            >
+              撤销我发布的任务
+            </van-button>
+          </div>
+        </template>
         <!-- 已接单:提交截图验证 -->
         <van-button
           v-else-if="claimResult"
@@ -250,6 +272,9 @@ const submitResult = ref(null);
 const fileInputRef = ref(null);
 const screenshotFile = ref(null);
 const screenshotPreview = ref(null);
+
+// Pin
+const pinning = ref(false);
 
 const typeMeta = computed(() => {
   if (!task.value) return { label: '', tagType: 'default' };
@@ -407,6 +432,24 @@ async function onSubmit() {
     submitResult.value = { ok: false, error: err?.message || '验证失败,请稍后再试' };
   } finally {
     submitting.value = false;
+  }
+}
+
+async function onPinTask() {
+  pinning.value = true;
+  try {
+    const res = await api.post(`/tasks/${route.params.id}/pin`);
+    if (res.ok) {
+      showToast({ message: '✨ 置顶成功！', type: 'success' });
+      await userStore.refreshMe();
+      await loadTask();
+    } else {
+      showFailToast(res.error || '置顶失败');
+    }
+  } catch (err) {
+    showFailToast(err?.error || '置顶失败');
+  } finally {
+    pinning.value = false;
   }
 }
 
@@ -612,6 +655,11 @@ onMounted(() => {
   background: var(--card-bg);
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.06);
   z-index: 100;
+}
+.owner-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* 接单提示卡 */

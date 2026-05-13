@@ -64,7 +64,10 @@
           <!-- 内容 -->
           <div class="card-body">
             <div class="card-title-row">
-              <h3 class="song-name">{{ task.song_name }}</h3>
+              <h3 class="song-name" :class="{ 'golden-shimmer': task.is_pinned }">
+                <span v-if="task.is_pinned" class="pin-icon">📌</span>
+                {{ task.song_name }}
+              </h3>
               <van-tag
                 v-if="task.is_welfare"
                 type="success"
@@ -408,5 +411,27 @@ async function refreshSilently() {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 60%;
+}
+
+/* 置顶金色流光效果 */
+.pin-icon {
+  margin-right: 2px;
+}
+.golden-shimmer {
+  background: linear-gradient(
+    90deg,
+    #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c, #fcf6ba, #bf953f
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: golden-flow 3s ease-in-out infinite;
+  font-weight: 800;
+}
+@keyframes golden-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 </style>

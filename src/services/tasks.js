@@ -260,7 +260,7 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
     `SELECT
        t.id, t.task_type, t.reward_points, t.quota_total, t.quota_remaining,
        t.min_listen_sec, t.share_link, t.expires_at, t.created_at,
-       t.is_welfare,
+       t.is_welfare, t.is_pinned, t.pinned_at,
        s.song_name, s.artist_name, s.cover_url,
        s.first_seen_likes AS likes, s.first_seen_comments AS comments, s.first_seen_shares AS shares,
        u.nickname AS publisher_nickname
@@ -268,7 +268,7 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
      JOIN songs s ON s.id = t.song_id
      JOIN users u ON u.id = t.publisher_id
      WHERE ${conditions.join(' AND ')}
-     ORDER BY t.is_welfare DESC, t.created_at DESC
+     ORDER BY t.is_pinned DESC, t.is_welfare DESC, t.created_at DESC
      LIMIT ? OFFSET ?`,
     params
   );
@@ -390,11 +390,62 @@ module.exports = {
   validatePublishParams,
   publishTask,
   publishWelfareTask,
+  pinTask,
   listTasks,
   getTaskById,
   listMyTasks,
   cancelTask
 };
+
+const PIN_COST = 50;
+
+/**
+ * 置顶任务(扣 50 积分,置顶 7 天)
+ */
+async function pinTask({ taskId, userId }) {
+  // 查任务
+  const [[task]] = await pool.query(
+    `SELECT id, publisher_id, status, is_pinned FROM tasks WHERE id = ?`,
+    [taskId]
+  );
+  if (!task) return { ok: false, error: '任务不存在' };
+  if (task.publisher_id !== userId) return { ok: false, error: '只能置顶自己的任务' };
+  if (task.status !== 'active') return { ok: false, error: '只有进行中的任务可以置顶' };
+  if (task.is_pinned) return { ok: false, error: '任务已经置顶了' };
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // 扣积分
+    const deductResult = await pointsService.deductInTx(conn, {
+      userId,
+      amount: PIN_COST,
+      type: 'task_pin',
+      refType: 'task',
+      refId: taskId,
+      note: `置顶任务 #${taskId}`
+    });
+    if (!deductResult.ok) {
+      await conn.rollback();
+      return { ok: false, error: deductResult.error || '积分不足' };
+    }
+
+    // 置顶
+    await conn.query(
+      `UPDATE tasks SET is_pinned = 1, pinned_at = NOW() WHERE id = ?`,
+      [taskId]
+    );
+
+    await conn.commit();
+    return { ok: true, message: '置顶成功！歌名将以金色流光显示' };
+  } catch (err) {
+    await conn.rollback();
+    return { ok: false, error: '置顶失败：' + err.message };
+  } finally {
+    conn.release();
+  }
+}
 
 /**
  * 系统发布福利任务(不扣积分、跳过 24h 去重)

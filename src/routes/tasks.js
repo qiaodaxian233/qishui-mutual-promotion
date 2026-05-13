@@ -196,4 +196,22 @@ router.post('/:id/claim', requireAuth, strictLimiter, async (req, res) => {
   res.json(result);
 });
 
+/**
+ * POST /api/tasks/:id/pin  置顶任务(扣 50 积分)
+ */
+router.post('/:id/pin', requireAuth, strictLimiter, async (req, res) => {
+  const taskId = parseInt(req.params.id, 10);
+  if (!Number.isInteger(taskId) || taskId <= 0) {
+    return res.status(400).json({ ok: false, error: '任务 ID 不正确' });
+  }
+  const result = await tasksService.pinTask({
+    taskId,
+    userId: req.user.id
+  });
+  if (!result.ok) {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
 module.exports = router;
