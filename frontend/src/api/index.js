@@ -31,18 +31,20 @@ instance.interceptors.response.use(
 
     const { status, data } = error.response;
 
-    // 401:登录过期,清掉 token,跳登录页
+    // 401:登录过期,清掉 token
     if (status === 401) {
       localStorage.removeItem('qishui_token');
       localStorage.removeItem('qishui_user');
-      showToast('登录已过期,请重新登录');
-      // 不要在拦截器里直接 router.push,可能引起循环
-      // 让调用方拿到错误自己处理,或者监听后做
-      setTimeout(() => {
-        if (location.pathname !== '/login') {
+      // 只在需要登录的页面才跳转,公开页面(首页/广场/详情)静默处理
+      const publicPaths = ['/', '/tasks', '/login', '/register', '/agreement'];
+      const isPublicPage = publicPaths.some(p => location.pathname === p) ||
+                           location.pathname.startsWith('/tasks/');
+      if (!isPublicPage && location.pathname !== '/login') {
+        showToast('登录已过期,请重新登录');
+        setTimeout(() => {
           location.href = '/login?redirect=' + encodeURIComponent(location.pathname);
-        }
-      }, 500);
+        }, 500);
+      }
       return Promise.reject(data || { ok: false, error: '未登录' });
     }
 
