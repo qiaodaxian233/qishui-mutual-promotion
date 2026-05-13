@@ -36,6 +36,14 @@
   --van-button-primary-background: var(--color-primary);
   --van-button-primary-border-color: var(--color-primary);
   --van-button-primary-color: var(--color-on-primary);
+
+  /* Tag 主题:标签是次要信息(如信用分、状态),
+     用淡绿底 + 深绿字,不抢主按钮的戏 */
+  --van-tag-primary-color: var(--color-primary-dark);
+  --van-tag-primary-background-color: rgba(26, 254, 73, 0.15);
+
+  /* Toast 成功 / Notify 等用主色变体 */
+  --van-toast-loading-icon-color: var(--color-primary-dark);
 }
 
 /* ===== reset ===== */

@@ -105,8 +105,18 @@ onMounted(async () => {
 }
 
 .brand-emoji {
-  font-size: 56px;
-  margin-bottom: 8px;
+  /* 套绿色圆底,Windows/Mac/Android 的 emoji 都是彩色的(紫色音符),
+     CSS color 改不动 emoji 本身,但加圆形绿底能强化品牌识别 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  font-size: 52px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 6px 20px rgba(26, 254, 73, 0.35);
 }
 
 .brand-title {
