@@ -57,14 +57,25 @@ async function isEmailRegistered(email) {
  * 注册新用户(需先通过邮箱验证)
  * @returns {Object} { ok, userId?, error? }
  */
-async function register({ email, password, nickname, ip, userAgent }) {
+async function register({ email, password, nickname, ip, userAgent, inviteCode }) {
   // 双保险:再查一次邮箱是否被占
   if (await isEmailRegistered(email)) {
     return { ok: false, error: '邮箱已被注册' };
   }
 
+  // 查邀请人
+  let inviterId = null;
+  if (inviteCode) {
+    const [[inviter]] = await pool.query(
+      `SELECT id FROM users WHERE invite_code = ? AND status = 'active' LIMIT 1`,
+      [inviteCode.trim().toUpperCase()]
+    );
+    if (inviter) inviterId = inviter.id;
+  }
+
   const passwordHash = await hashPassword(password);
   const registerIpHash = ip ? sha256WithSalt(ip) : null;
+  const myInviteCode = generateInviteCode();
 
   const conn = await pool.getConnection();
   try {
@@ -74,8 +85,8 @@ async function register({ email, password, nickname, ip, userAgent }) {
     const [result] = await conn.query(
       `INSERT INTO users
          (email, password_hash, nickname, email_verified, email_verified_at,
-          points, credit_score, register_ip, register_ua)
-       VALUES (?, ?, ?, 1, NOW(), ?, ?, ?, ?)`,
+          points, credit_score, register_ip, register_ua, invite_code, invited_by)
+       VALUES (?, ?, ?, 1, NOW(), ?, ?, ?, ?, ?, ?)`,
       [
         email,
         passwordHash,
@@ -83,7 +94,9 @@ async function register({ email, password, nickname, ip, userAgent }) {
         config.business.initialPoints,
         config.business.initialCredit,
         registerIpHash,
-        userAgent || null
+        userAgent || null,
+        myInviteCode,
+        inviterId
       ]
     );
     const userId = result.insertId;
@@ -96,11 +109,26 @@ async function register({ email, password, nickname, ip, userAgent }) {
       [userId, config.business.initialPoints, config.business.initialPoints]
     );
 
+    // 邀请奖励:给邀请人加 1000 积分
+    if (inviterId) {
+      await conn.query(
+        `UPDATE users SET points = points + 1000 WHERE id = ?`,
+        [inviterId]
+      );
+      const [[inviterInfo]] = await conn.query(
+        `SELECT points FROM users WHERE id = ?`, [inviterId]
+      );
+      await conn.query(
+        `INSERT INTO points_log (user_id, delta, balance_after, type, ref_type, ref_id, note)
+         VALUES (?, 1000, ?, 'reward', 'user', ?, ?)`,
+        [inviterId, inviterInfo.points, userId, `邀请新用户 ${nickname} 注册奖励`]
+      );
+    }
+
     await conn.commit();
-    return { ok: true, userId };
+    return { ok: true, userId, inviteCode: myInviteCode };
   } catch (err) {
     await conn.rollback();
-    // 唯一索引冲突
     if (err.code === 'ER_DUP_ENTRY') {
       return { ok: false, error: '邮箱已被注册' };
     }
@@ -109,6 +137,13 @@ async function register({ email, password, nickname, ip, userAgent }) {
   } finally {
     conn.release();
   }
+}
+
+function generateInviteCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  return code;
 }
 
 /**
@@ -199,7 +234,7 @@ async function logout(token) {
  */
 async function getUserById(userId) {
   const [rows] = await pool.query(
-    `SELECT id, email, nickname, avatar_url, points, credit_score, status, role
+    `SELECT id, email, nickname, avatar_url, points, credit_score, status, role, invite_code
        FROM users WHERE id = ? LIMIT 1`,
     [userId]
   );

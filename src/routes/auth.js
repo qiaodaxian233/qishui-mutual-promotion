@@ -111,7 +111,7 @@ router.post('/register', strictLimiter, async (req, res) => {
   const ua = getUserAgent(req);
   const regResult = await auth.register({
     email, password, nickname: nickname.trim(),
-    ip, userAgent: ua
+    ip, userAgent: ua, inviteCode: req.body.inviteCode
   });
 
   if (!regResult.ok) {
@@ -170,8 +170,30 @@ router.get('/me', requireAuth, (req, res) => {
       avatarUrl: req.user.avatar_url,
       points: req.user.points,
       creditScore: req.user.credit_score,
-      role: req.user.role || 'user'
+      role: req.user.role || 'user',
+      inviteCode: req.user.invite_code || ''
     }
+  });
+});
+
+/**
+ * 我的邀请信息
+ */
+router.get('/invite', requireAuth, async (req, res) => {
+  const [[countRow]] = await pool.query(
+    `SELECT COUNT(*) AS count FROM users WHERE invited_by = ?`,
+    [req.user.id]
+  );
+  const [invitees] = await pool.query(
+    `SELECT nickname, created_at FROM users WHERE invited_by = ? ORDER BY id DESC LIMIT 20`,
+    [req.user.id]
+  );
+  res.json({
+    ok: true,
+    inviteCode: req.user.invite_code || '',
+    totalInvited: countRow.count,
+    totalEarned: countRow.count * 1000,
+    invitees
   });
 });
 

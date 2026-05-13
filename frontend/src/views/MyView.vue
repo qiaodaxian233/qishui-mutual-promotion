@@ -32,6 +32,18 @@
         </div>
       </section>
 
+      <!-- 邀请好友卡 -->
+      <section v-if="userStore.user?.inviteCode" class="invite-card" @click="onShareInvite">
+        <div class="invite-left">
+          <span class="invite-emoji">🎁</span>
+          <div class="invite-info">
+            <span class="invite-title">邀请好友得 1000 积分</span>
+            <span class="invite-code">我的邀请码: {{ userStore.user.inviteCode }}</span>
+          </div>
+        </div>
+        <van-button type="primary" size="small" round>分享</van-button>
+      </section>
+
       <!-- 功能入口 -->
       <section class="menu-card">
         <van-cell title="📝 个人资料" is-link @click="$router.push('/profile')" />
@@ -311,6 +323,26 @@ async function onLogout() {
   router.replace('/');
 }
 
+async function onShareInvite() {
+  const code = userStore.user?.inviteCode;
+  if (!code) return;
+  const url = `${location.origin}/register?invite=${code}`;
+  const text = `🎵 来汽水音乐互推！用我的邀请码 ${code} 注册，双方各得积分奖励！${url}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: '汽水音乐互推', text, url });
+    } else if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      showToast('邀请链接已复制');
+    }
+  } catch {
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('邀请链接已复制');
+    } catch { showToast('复制失败'); }
+  }
+}
+
 onActivated(() => {
   if (userStore.isLoggedIn) {
     userStore.refreshMe();
@@ -442,6 +474,25 @@ onActivated(() => {
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,.04);
 }
+
+/* 邀请卡 */
+.invite-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 12px;
+  padding: 14px 16px;
+  background: var(--card-bg);
+  border: 1.5px solid var(--color-primary);
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(52, 199, 89, 0.15);
+}
+.invite-left { display: flex; align-items: center; gap: 10px; }
+.invite-emoji { font-size: 28px; }
+.invite-info { display: flex; flex-direction: column; }
+.invite-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.invite-code { font-size: 12px; color: var(--color-primary-dark); font-weight: 600; margin-top: 2px; letter-spacing: 1px; }
 .badge {
   display: inline-block;
   min-width: 18px;

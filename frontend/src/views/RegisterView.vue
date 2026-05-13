@@ -71,6 +71,18 @@
             </span>
           </div>
         </div>
+
+        <div class="input-group">
+          <label class="input-label">邀请码 <span class="optional">选填</span></label>
+          <input
+            v-model.trim="form.inviteCode"
+            type="text"
+            class="apple-input"
+            placeholder="有邀请码？填入双方各得奖励"
+            maxlength="6"
+            style="text-transform: uppercase"
+          />
+        </div>
       </div>
 
       <!-- 协议 -->
@@ -106,7 +118,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onUnmounted } from 'vue';
+import { reactive, ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { showToast, showFailToast } from 'vant';
 import api from '@/api';
@@ -116,7 +128,7 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
-const form = reactive({ email: '', code: '', nickname: '', password: '' });
+const form = reactive({ email: '', code: '', nickname: '', password: '', inviteCode: '' });
 const showPwd = ref(false);
 const agreeTos = ref(false);
 const submitting = ref(false);
@@ -159,7 +171,8 @@ async function onSubmit() {
   try {
     const res = await api.post('/auth/register', {
       email: form.email, code: form.code,
-      nickname: form.nickname.trim(), password: form.password
+      nickname: form.nickname.trim(), password: form.password,
+      inviteCode: form.inviteCode || undefined
     });
     if (res.ok) {
       userStore.setAuth(res.token, res.user);
@@ -175,6 +188,12 @@ async function onSubmit() {
 
 function onBack() { window.history.length > 1 ? router.back() : router.replace('/'); }
 function goLogin() { router.push({ name: 'login', query: route.query.redirect ? { redirect: route.query.redirect } : {} }); }
+
+onMounted(() => {
+  // 从 URL 自动填充邀请码 (?invite=XXXXXX)
+  const code = route.query.invite || route.query.inviteCode || '';
+  if (code) form.inviteCode = String(code).toUpperCase();
+});
 </script>
 
 <style scoped>
@@ -220,6 +239,11 @@ function goLogin() { router.push({ name: 'login', query: route.query.redirect ? 
   font-weight: 600;
   color: var(--color-text-regular);
   padding-left: 2px;
+}
+.optional {
+  font-weight: 400;
+  color: var(--color-text-disabled);
+  font-size: 11px;
 }
 .apple-input {
   width: 100%;
