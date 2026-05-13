@@ -6,11 +6,11 @@ const rateLimit = require('express-rate-limit');
 const { getClientIp } = require('../utils/request');
 
 /**
- * 通用限流:每 IP 每分钟 60 次
+ * 通用限流:每 IP 每分钟 200 次(SPA 每页加载会发多个请求)
  */
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getClientIp(req),
@@ -18,11 +18,11 @@ const generalLimiter = rateLimit({
 });
 
 /**
- * 严格限流:验证码相关接口,每 IP 每分钟 5 次
+ * 严格限流:敏感操作,每 IP 每分钟 15 次
  */
 const strictLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => getClientIp(req),

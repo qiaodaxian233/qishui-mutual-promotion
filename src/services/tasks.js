@@ -262,6 +262,7 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
        t.min_listen_sec, t.share_link, t.expires_at, t.created_at,
        t.is_welfare,
        s.song_name, s.artist_name, s.cover_url,
+       s.first_seen_likes AS likes, s.first_seen_comments AS comments, s.first_seen_shares AS shares,
        u.nickname AS publisher_nickname
      FROM tasks t
      JOIN songs s ON s.id = t.song_id

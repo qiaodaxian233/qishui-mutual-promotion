@@ -91,6 +91,13 @@
               </span>
             </div>
 
+            <!-- 互动数据 -->
+            <div class="interact-row">
+              <span class="interact-item" v-if="task.likes != null">❤️ {{ formatNum(task.likes) }}</span>
+              <span class="interact-item" v-if="task.comments != null">💬 {{ formatNum(task.comments) }}</span>
+              <span class="interact-item" v-if="task.shares != null">🔗 {{ formatNum(task.shares) }}</span>
+            </div>
+
             <div class="bottom-row">
               <span class="publisher">@{{ task.publisher_nickname }}</span>
               <span class="time">{{ relativeTime(task.created_at) }}</span>
@@ -172,6 +179,13 @@ function relativeTime(iso) {
   if (h < 24) return `${h} 小时前`;
   const d = Math.floor(h / 24);
   return `${d} 天前`;
+}
+
+function formatNum(n) {
+  if (n == null) return '';
+  if (n >= 10000) return (n / 10000).toFixed(1) + 'w';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
 }
 
 function onCoverError(e) {
@@ -344,6 +358,16 @@ async function refreshSilently() {
 .welfare-tag {
   flex-shrink: 0;
   font-size: 10px;
+}
+
+.interact-row {
+  display: flex;
+  gap: 10px;
+  margin: 2px 0;
+}
+.interact-item {
+  font-size: 11px;
+  color: var(--color-text-secondary);
 }
 
 .artist {
