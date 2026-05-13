@@ -1,0 +1,25 @@
+{
+  "name": "qishui-frontend",
+  "version": "0.5.0",
+  "private": true,
+  "description": "汽水音乐互推平台 - 前端",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0",
+    "pinia": "^2.3.0",
+    "axios": "^1.7.9",
+    "vant": "^4.9.14"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "vite": "^6.0.7",
+    "unplugin-vue-components": "^0.28.0",
+    "@vant/auto-import-resolver": "^1.2.1",
+    "postcss-px-to-viewport-8-plugin": "^1.2.5"
+  }
+}

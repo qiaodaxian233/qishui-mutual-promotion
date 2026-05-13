@@ -46,7 +46,42 @@ app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/completions', require('./routes/completions'));
 app.use('/api/points', require('./routes/points'));
 
-// 404
+// ============================================================
+// 前端静态文件托管
+//
+// 前端构建产物在 public/ 目录(frontend 构建时输出)
+// - /assets/*  CSS/JS/图片等静态资源(浏览器缓存 1 年)
+// - 其它路径(/, /login, /register 等)→ 返回 index.html(SPA fallback)
+//
+// 注意:必须在 /api/* 路由之后,在 404 处理之前
+// ============================================================
+const path = require('path');
+const fs = require('fs');
+const PUBLIC_DIR = path.join(__dirname, '..', 'public');
+
+if (fs.existsSync(PUBLIC_DIR)) {
+  // 静态资源(CSS/JS/图片)长缓存
+  app.use('/assets', express.static(path.join(PUBLIC_DIR, 'assets'), {
+    maxAge: '1y',
+    immutable: true
+  }));
+
+  // 根目录的其它静态文件(favicon、图标等)短缓存
+  app.use(express.static(PUBLIC_DIR, { maxAge: '1h', index: false }));
+
+  // SPA fallback:所有 GET 非 /api 路径都返回 index.html
+  // 这样前端深层路由(如 /tasks/123)刷新页面也能正常加载
+  app.get(/^(?!\/api\/).*$/, (req, res, next) => {
+    // 只处理 GET 请求,且接受 HTML
+    if (req.method !== 'GET') return next();
+    if (!req.accepts('html')) return next();
+    res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+  });
+} else {
+  console.warn(`[server] ⚠️ public/ 目录不存在,前端未构建。运行 cd frontend && npm install && npm run build`);
+}
+
+// 404(只到这里的都是非 GET 或非 HTML 的 API 错误路径)
 app.use((req, res) => {
   res.status(404).json({ ok: false, error: 'Not Found' });
 });
@@ -60,7 +95,7 @@ app.use((err, req, res, next) => {
 // 启动
 app.listen(config.port, async () => {
   console.log(`====================================`);
-  console.log(`  汽水音乐互推平台 v0.4.0`);
+  console.log(`  汽水音乐互推平台 v0.5.0`);
   console.log(`  端口:${config.port}`);
   console.log(`  环境:${config.env}`);
   console.log(`====================================`);

@@ -12,12 +12,9 @@ config/secrets.*
 data/*.json
 data/*.db
 data/*.sqlite
+data/uploads/
 !data/disposable_domains.txt
 !data/.gitkeep
-
-# 上传的图片(临时,定期清理)
-uploads/
-public/uploads/
 
 # 日志
 *.log
@@ -26,7 +23,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# 构建产物
+# 构建产物(前端 dist 是临时的,但 public 是要入库的)
 dist/
 build/
 .next/
