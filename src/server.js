@@ -95,7 +95,7 @@ app.use((err, req, res, next) => {
 // 启动
 app.listen(config.port, async () => {
   console.log(`====================================`);
-  console.log(`  汽水音乐互推平台 v0.5.1`);
+  console.log(`  汽水音乐互推平台 v0.5.2`);
   console.log(`  端口:${config.port}`);
   console.log(`  环境:${config.env}`);
   console.log(`====================================`);
