@@ -363,4 +363,43 @@ router.get('/completions', requireAuth, requireAdmin, async (req, res) => {
   res.json({ ok: true, completions: rows });
 });
 
+/**
+ * POST /api/admin/users/batch-points  全员发放积分
+ */
+router.post('/users/batch-points', requireAuth, requireAdmin, async (req, res) => {
+  const { delta, note } = req.body;
+  if (!delta || typeof delta !== 'number' || delta <= 0) {
+    return res.status(400).json({ ok: false, error: '请输入正整数积分' });
+  }
+  if (delta > 10000) {
+    return res.status(400).json({ ok: false, error: '单次最多发放 10000 积分' });
+  }
+
+  const [users] = await pool.query(`SELECT id FROM users WHERE status = 'active'`);
+
+  let count = 0;
+  const pointsService = require('../services/points');
+  const notify = require('../services/notifications');
+
+  for (const u of users) {
+    try {
+      await pointsService.add({
+        userId: u.id,
+        amount: delta,
+        type: 'admin_adjust',
+        note: note || '平台福利'
+      });
+      notify.send({
+        userId: u.id,
+        type: 'system',
+        title: '积分到账',
+        content: `管理员给全员发放了 ${delta} 积分:${note || '平台福利'}`
+      });
+      count++;
+    } catch {}
+  }
+
+  res.json({ ok: true, message: `已给 ${count} 名用户各发放 ${delta} 积分` });
+});
+
 module.exports = router;

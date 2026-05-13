@@ -35,6 +35,27 @@
       </van-button>
     </section>
 
+    <!-- 每日签到 -->
+    <section v-if="userStore.isLoggedIn" class="checkin-card" @click="onCheckin">
+      <div class="checkin-left">
+        <span class="checkin-emoji">{{ checkinDone ? '✅' : '📅' }}</span>
+        <div class="checkin-info">
+          <span class="checkin-title">{{ checkinDone ? '今日已签到' : '每日签到' }}</span>
+          <span class="checkin-sub">
+            {{ checkinDone ? `今日 +${checkinReward} 积分` : '随机获得 50~1000 积分' }}
+          </span>
+        </div>
+      </div>
+      <van-button
+        v-if="!checkinDone"
+        type="primary"
+        round
+        size="small"
+        :loading="checkinLoading"
+      >签到</van-button>
+      <van-tag v-else type="success" round size="large">+{{ checkinReward }}</van-tag>
+    </section>
+
     <!-- 任务广场入口 -->
     <section class="plaza-entry mt-32">
       <div class="plaza-card" @click="$router.push('/tasks')">
@@ -92,10 +113,49 @@ async function onLogout() {
   showToast('已退出登录');
 }
 
+// 签到
+const checkinDone = ref(false);
+const checkinReward = ref(0);
+const checkinLoading = ref(false);
+
+async function loadCheckinStatus() {
+  try {
+    const res = await api.get('/checkin/status');
+    if (res.ok) {
+      checkinDone.value = res.checkedIn;
+      checkinReward.value = res.todayReward;
+    }
+  } catch {}
+}
+
+async function onCheckin() {
+  if (checkinDone.value || checkinLoading.value) return;
+  checkinLoading.value = true;
+  try {
+    const res = await api.post('/checkin');
+    if (res.ok) {
+      checkinDone.value = true;
+      checkinReward.value = res.reward;
+      showToast({ message: res.message, type: 'success' });
+      await userStore.refreshMe();
+    } else if (res.alreadyDone) {
+      checkinDone.value = true;
+      checkinReward.value = res.todayReward;
+    } else {
+      showToast(res.error || '签到失败');
+    }
+  } catch (err) {
+    showToast(err?.error || '签到失败');
+  } finally {
+    checkinLoading.value = false;
+  }
+}
+
 onMounted(async () => {
   checkHealth();
   if (userStore.isLoggedIn) {
     await userStore.refreshMe();
+    loadCheckinStatus();
   }
 });
 </script>
@@ -183,6 +243,26 @@ onMounted(async () => {
 .guest-cta {
   margin-top: 32px;
 }
+
+/* 签到卡 */
+.checkin-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #f0fff4, #e8fce8);
+  border: 1px solid rgba(26, 254, 73, 0.15);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 12px;
+  cursor: pointer;
+  transition: transform .12s;
+}
+.checkin-card:active { transform: scale(.98); }
+.checkin-left { display: flex; align-items: center; gap: 10px; }
+.checkin-emoji { font-size: 28px; }
+.checkin-info { display: flex; flex-direction: column; }
+.checkin-title { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+.checkin-sub { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 
 .plaza-entry {
   margin-top: 32px;

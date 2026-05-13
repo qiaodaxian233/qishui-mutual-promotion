@@ -46,6 +46,7 @@ app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/completions', require('./routes/completions'));
 app.use('/api/points', require('./routes/points'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/checkin', require('./routes/checkin'));
 app.use('/api/admin', require('./routes/admin'));
 
 // ============================================================

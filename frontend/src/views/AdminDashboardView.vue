@@ -23,7 +23,24 @@
           <span class="action-icon">🔔</span>
           <span class="action-text">消息通知</span>
         </div>
+        <div class="action-btn" @click="showBatchPoints = true">
+          <span class="action-icon">💰</span>
+          <span class="action-text">全员发积分</span>
+        </div>
       </div>
+
+      <!-- 全员发积分弹窗 -->
+      <van-dialog
+        v-model:show="showBatchPoints"
+        title="全员发放积分"
+        show-cancel-button
+        @confirm="onBatchPoints"
+      >
+        <div style="padding: 16px">
+          <van-field v-model="batchDelta" type="number" label="积分数" placeholder="给每人发多少积分" />
+          <van-field v-model="batchNote" label="备注" placeholder="例如:平台福利" />
+        </div>
+      </van-dialog>
 
       <van-tabs v-model:active="activeTab" sticky offset-top="46" shrink>
         <van-tab name="stats" title="数据统计" />
@@ -98,10 +115,24 @@
             <van-button size="mini" v-if="u.status === 'frozen'" type="primary" @click="setUserStatus(u.id, 'active')">解冻</van-button>
             <van-button size="mini" v-if="u.role !== 'admin'" @click="setUserRole(u.id, 'admin')">设管理员</van-button>
             <van-button size="mini" v-if="u.role === 'admin'" @click="setUserRole(u.id, 'user')">取消管理员</van-button>
+            <van-button size="mini" type="primary" @click="openPointsDialog(u)">调积分</van-button>
           </div>
         </div>
         <van-empty v-if="userList.length === 0" description="无结果" image-size="80" />
       </div>
+
+      <!-- 积分调整弹窗 -->
+      <van-dialog
+        v-model:show="pointsDialog.show"
+        :title="'调整积分 - ' + pointsDialog.nickname"
+        show-cancel-button
+        @confirm="onAdjustPoints"
+      >
+        <div style="padding: 16px">
+          <van-field v-model="pointsDialog.delta" type="number" label="变动值" placeholder="正数加分,负数扣分" />
+          <van-field v-model="pointsDialog.note" label="备注" placeholder="调整原因" />
+        </div>
+      </van-dialog>
 
       <!-- 任务管理 -->
       <div v-if="activeTab === 'tasks'" class="tab-body">
@@ -166,6 +197,12 @@ const userList = ref([]);
 const taskFilter = ref('');
 const taskList = ref([]);
 
+// Points dialog
+const pointsDialog = ref({ show: false, userId: null, nickname: '', delta: '', note: '' });
+const showBatchPoints = ref(false);
+const batchDelta = ref('');
+const batchNote = ref('');
+
 // Completions
 const compFilter = ref('');
 const compList = ref([]);
@@ -221,6 +258,37 @@ async function setUserRole(id, role) {
   } catch (err) { showFailToast(err?.error || '操作失败'); }
 }
 
+function openPointsDialog(u) {
+  pointsDialog.value = { show: true, userId: u.id, nickname: u.nickname, delta: '', note: '' };
+}
+
+async function onAdjustPoints() {
+  const d = parseInt(pointsDialog.value.delta);
+  if (!d || isNaN(d)) { showFailToast('请输入有效数值'); return; }
+  try {
+    await api.post(`/admin/users/${pointsDialog.value.userId}/points`, {
+      delta: d,
+      note: pointsDialog.value.note || '管理员调整'
+    });
+    showSuccessToast(`${d > 0 ? '+' : ''}${d} 积分`);
+    loadUsers();
+  } catch (err) { showFailToast(err?.error || '操作失败'); }
+}
+
+async function onBatchPoints() {
+  const d = parseInt(batchDelta.value);
+  if (!d || d <= 0) { showFailToast('请输入正整数'); return; }
+  try {
+    const res = await api.post('/admin/users/batch-points', {
+      delta: d,
+      note: batchNote.value || '平台福利'
+    });
+    showSuccessToast(res.message || '发放成功');
+    batchDelta.value = '';
+    batchNote.value = '';
+  } catch (err) { showFailToast(err?.error || '操作失败'); }
+}
+
 watch(activeTab, (tab) => {
   if (tab === 'stats' && !stats.value) loadStats();
   if (tab === 'users' && userList.value.length === 0) loadUsers();
@@ -239,7 +307,7 @@ onMounted(() => { loadStats(); });
 /* 快捷操作 */
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   padding: 12px;
 }
