@@ -93,18 +93,31 @@
       <section class="link-card">
         <h3 class="card-title">汽水分享链接</h3>
         <div class="link-row">
-          <span class="link-text">{{ task.share_link }}</span>
+          <a
+            :href="task.share_link"
+            target="_blank"
+            rel="noopener"
+            class="link-text link-clickable"
+          >{{ task.share_link }}</a>
           <van-button
             size="small"
             type="primary"
             plain
-            @click="copyLink"
+            @click.stop="copyLink"
           >
             {{ copied ? '✓ 已复制' : '复制' }}
           </van-button>
         </div>
+        <a
+          :href="task.share_link"
+          target="_blank"
+          rel="noopener"
+          class="open-btn"
+        >
+          🎵 打开汽水音乐
+        </a>
         <p class="link-hint">
-          复制后到汽水音乐 App 打开,完成{{ typeMeta.label }}操作
+          点击上方按钮直接跳转，或复制链接到汽水音乐 App 打开
         </p>
       </section>
 
@@ -123,9 +136,22 @@
       <section v-if="claimResult && !submitResult" class="claim-card">
         <h3 class="card-title">✅ 已接单,请完成任务</h3>
         <p class="claim-tip">{{ claimResult.tip }}</p>
+        <a
+          :href="claimResult.shareLink"
+          target="_blank"
+          rel="noopener"
+          class="open-btn"
+        >
+          🎵 打开汽水音乐完成任务
+        </a>
         <div class="link-row">
-          <span class="link-text">{{ claimResult.shareLink }}</span>
-          <van-button size="small" type="primary" plain @click="copyLink">
+          <a
+            :href="claimResult.shareLink"
+            target="_blank"
+            rel="noopener"
+            class="link-text link-clickable"
+          >{{ claimResult.shareLink }}</a>
+          <van-button size="small" type="primary" plain @click.stop="copyLink">
             {{ copied ? '✓ 已复制' : '复制' }}
           </van-button>
         </div>
@@ -697,6 +723,24 @@ onMounted(() => {
   word-break: break-all;
   font-family: 'SF Mono', Consolas, Menlo, monospace;
 }
+.link-clickable {
+  color: var(--color-primary-dark) !important;
+  text-decoration: underline;
+}
+.open-btn {
+  display: block;
+  text-align: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.open-btn:active { opacity: 0.8; }
 .link-hint {
   margin: 0;
   font-size: 12px;

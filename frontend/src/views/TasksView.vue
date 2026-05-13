@@ -272,10 +272,11 @@ async function refreshSilently() {
     const params = { limit: PAGE_SIZE, offset: 0 };
     if (activeType.value !== 'all') params.type = activeType.value;
     const res = await api.get('/tasks', { params });
-    if (res.ok && res.tasks.length > 0) {
-      // 只更新顶部第一页,不破坏滚动位置
-      const fresh = new Map(res.tasks.map(t => [t.id, t]));
-      tasks.value = tasks.value.map(t => fresh.get(t.id) || t);
+    if (res.ok) {
+      // 直接替换整个列表,确保新任务、名额变化都能看到
+      tasks.value = res.tasks;
+      offset.value = res.tasks.length;
+      finished.value = res.tasks.length < PAGE_SIZE;
     }
   } catch {}
 }
