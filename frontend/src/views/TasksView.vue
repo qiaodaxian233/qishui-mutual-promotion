@@ -46,6 +46,7 @@
           v-for="task in tasks"
           :key="task.id"
           class="task-card"
+          :class="{ 'task-card--pinned': task.is_pinned }"
           @click="goDetail(task.id)"
         >
           <!-- 封面 -->
@@ -298,12 +299,28 @@ async function refreshSilently() {
   padding: 12px;
   background: var(--card-bg);
   border-radius: 12px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,0.04));
   cursor: pointer;
   transition: transform 0.15s ease;
+  border: 2px solid transparent;
 }
 .task-card:active {
   transform: scale(0.98);
+}
+
+/* 置顶卡片绿色呼吸光效 */
+.task-card--pinned {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 12px rgba(52, 199, 89, 0.4), 0 0 24px rgba(52, 199, 89, 0.15);
+  animation: green-glow 2s ease-in-out infinite;
+}
+@keyframes green-glow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(52, 199, 89, 0.3), 0 0 20px rgba(52, 199, 89, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(52, 199, 89, 0.6), 0 0 32px rgba(52, 199, 89, 0.25);
+  }
 }
 
 .cover-wrap {
