@@ -42,6 +42,8 @@ app.get('/api/health', async (req, res) => {
 
 // 业务路由
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/tasks', require('./routes/tasks'));
+app.use('/api/points', require('./routes/points'));
 
 // 404
 app.use((req, res) => {
@@ -57,7 +59,7 @@ app.use((err, req, res, next) => {
 // 启动
 app.listen(config.port, async () => {
   console.log(`====================================`);
-  console.log(`  汽水音乐互推平台 v0.2.0`);
+  console.log(`  汽水音乐互推平台 v0.3.1`);
   console.log(`  端口:${config.port}`);
   console.log(`  环境:${config.env}`);
   console.log(`====================================`);
