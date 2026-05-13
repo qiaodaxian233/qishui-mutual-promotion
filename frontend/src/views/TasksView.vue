@@ -132,7 +132,7 @@
 
 <script setup>
 defineOptions({ name: 'TasksView' });
-import { ref, computed, onActivated } from 'vue';
+import { ref, computed, onActivated, onDeactivated } from 'vue';
 import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
 import api from '@/api';
@@ -140,6 +140,8 @@ import { useUserStore } from '@/stores/user';
 
 const router = useRouter();
 const userStore = useUserStore();
+
+let refreshTimer = null;
 
 const typeTabs = [
   { value: 'all',     label: '全部' },
@@ -259,11 +261,19 @@ function onPublish() {
 
 // keep-alive 友好:每次回到这个页面都刷一次
 onActivated(() => {
-  // 如果列表为空说明初次进入,onLoad 会自动触发,不用手动调
+  // 回到页面时立即刷新一次
   if (tasks.value.length > 0) {
-    // 已经有数据,静默刷新顶部(不显示 pull-refresh 圈圈,避免打扰用户)
-    // 但更新 quota_remaining 等动态字段
     refreshSilently();
+  }
+  // 每 30 秒自动刷新
+  refreshTimer = setInterval(refreshSilently, 30 * 1000);
+});
+
+onDeactivated(() => {
+  // 离开页面停止刷新
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
   }
 });
 

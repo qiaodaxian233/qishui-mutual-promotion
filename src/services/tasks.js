@@ -262,11 +262,20 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
        t.min_listen_sec, t.share_link, t.expires_at, t.created_at,
        t.is_welfare, t.is_pinned, t.pinned_at,
        s.song_name, s.artist_name, s.cover_url,
-       s.first_seen_likes AS likes, s.first_seen_comments AS comments, s.first_seen_shares AS shares,
+       COALESCE(snap.likes, s.first_seen_likes) AS likes,
+       COALESCE(snap.comments, s.first_seen_comments) AS comments,
+       COALESCE(snap.shares, s.first_seen_shares) AS shares,
        u.nickname AS publisher_nickname
      FROM tasks t
      JOIN songs s ON s.id = t.song_id
      JOIN users u ON u.id = t.publisher_id
+     LEFT JOIN (
+       SELECT task_id, likes, comments, shares
+       FROM interaction_snapshots i1
+       WHERE i1.id = (
+         SELECT MAX(i2.id) FROM interaction_snapshots i2 WHERE i2.task_id = i1.task_id
+       )
+     ) snap ON snap.task_id = t.id
      WHERE ${conditions.join(' AND ')}
      ORDER BY t.is_pinned DESC, t.is_welfare DESC, t.created_at DESC
      LIMIT ? OFFSET ?`,

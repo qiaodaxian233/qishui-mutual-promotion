@@ -11,14 +11,17 @@ const pool = require('../config/db');
 const pointsService = require('./points');
 const creditService = require('./credit');
 const notify = require('./notifications');
+const parser = require('./qishui-parser');
 
 const RECHECK_INTERVAL_MS = 10 * 60 * 1000;   // 10 分钟
 const EXPIRY_INTERVAL_MS = 30 * 60 * 1000;    // 30 分钟
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000;    // 5 分钟刷新互动数
 const RECHECK_BATCH_SIZE = 50;
 const CLAIM_TIMEOUT_MINUTES = 30;              // 接单后 30 分钟不提交就超时
 
 let recheckTimer = null;
 let expiryTimer = null;
+let refreshTimer = null;
 
 function startScheduler() {
   console.log('[scheduler] 启动定时任务');
@@ -32,6 +35,7 @@ function startScheduler() {
       runClaimTimeoutJob();
     }, RECHECK_INTERVAL_MS);
     expiryTimer = setInterval(runTaskExpiryJob, EXPIRY_INTERVAL_MS);
+    refreshTimer = setInterval(runInteractionRefreshJob, REFRESH_INTERVAL_MS);
   }, 30 * 1000);
 }
 
@@ -172,8 +176,54 @@ async function runTaskExpiryJob() {
 function stopScheduler() {
   if (recheckTimer) clearInterval(recheckTimer);
   if (expiryTimer) clearInterval(expiryTimer);
+  if (refreshTimer) clearInterval(refreshTimer);
   recheckTimer = null;
   expiryTimer = null;
+  refreshTimer = null;
 }
 
-module.exports = { startScheduler, stopScheduler, runRecheckJob, runClaimTimeoutJob, runTaskExpiryJob };
+/**
+ * 每 5 分钟抓取活跃任务的最新互动数,更新快照
+ */
+async function runInteractionRefreshJob() {
+  try {
+    const [tasks] = await pool.query(
+      `SELECT t.id, t.share_link, t.song_id
+       FROM tasks t
+       WHERE t.status = 'active' AND t.expires_at > NOW()
+       ORDER BY t.created_at DESC
+       LIMIT 10`
+    );
+    if (tasks.length === 0) return;
+
+    let updated = 0;
+    for (const task of tasks) {
+      try {
+        const fetched = await parser.fetchShareHtml(task.share_link);
+        if (!fetched.ok) continue;
+        const interactions = parser.extractInteractions(fetched.html);
+        if (interactions.likes == null && interactions.comments == null) continue;
+
+        await pool.query(
+          `INSERT INTO interaction_snapshots
+             (song_id, task_id, likes, comments, shares, plays, snapshot_type, source)
+           VALUES (?, ?, ?, ?, ?, ?, 'periodic', 'scrape')`,
+          [task.song_id, task.id,
+           interactions.likes ?? null, interactions.comments ?? null,
+           interactions.shares ?? null, interactions.plays ?? null]
+        );
+        updated++;
+
+        // 避免太快被封,每次间隔 2 秒
+        await new Promise(r => setTimeout(r, 2000));
+      } catch {}
+    }
+    if (updated > 0) {
+      console.log(`[scheduler] 互动数刷新 ${updated}/${tasks.length} 个任务`);
+    }
+  } catch (err) {
+    console.error('[scheduler] 互动数刷新异常:', err.message);
+  }
+}
+
+module.exports = { startScheduler, stopScheduler, runRecheckJob, runClaimTimeoutJob, runTaskExpiryJob, runInteractionRefreshJob };
