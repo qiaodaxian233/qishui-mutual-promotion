@@ -101,6 +101,7 @@ function goRegister() { router.push({ name: 'register', query: route.query.redir
 .logo {
   width: 72px; height: 72px; border-radius: 20px; object-fit: cover;
   box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
+  margin: 0 auto;
 }
 .auth-title { text-align: center; font-size: 26px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 6px; letter-spacing: -0.5px; }
 .auth-sub { text-align: center; font-size: 14px; color: var(--color-text-secondary); margin: 0 0 32px; }

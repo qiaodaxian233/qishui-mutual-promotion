@@ -302,7 +302,7 @@ async function refreshSilently() {
   box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,0.04));
   cursor: pointer;
   transition: transform 0.15s ease;
-  border: 2px solid transparent;
+  border: 1.5px solid var(--divider);
 }
 .task-card:active {
   transform: scale(0.98);
@@ -310,7 +310,7 @@ async function refreshSilently() {
 
 /* 置顶卡片绿色呼吸光效 */
 .task-card--pinned {
-  border-color: var(--color-primary);
+  border: 2px solid var(--color-primary);
   box-shadow: 0 0 12px rgba(52, 199, 89, 0.4), 0 0 24px rgba(52, 199, 89, 0.15);
   animation: green-glow 2s ease-in-out infinite;
 }

@@ -195,6 +195,7 @@ function goLogin() { router.push({ name: 'login', query: route.query.redirect ? 
   border-radius: 20px;
   object-fit: cover;
   box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
+  margin: 0 auto;
 }
 .auth-title {
   text-align: center;
