@@ -5,7 +5,7 @@
     <div class="auth-content">
       <!-- Logo -->
       <div class="logo-wrap">
-        <div class="logo">🎵</div>
+        <img src="/logo.png" alt="汽水音乐互推" class="logo" />
       </div>
       <h1 class="auth-title">创建账号</h1>
       <p class="auth-sub">加入汽水音乐互推 · 注册送 100 积分</p>
@@ -191,13 +191,9 @@ function goLogin() { router.push({ name: 'login', query: route.query.redirect ? 
 /* Logo */
 .logo-wrap { text-align: center; margin-bottom: 20px; }
 .logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 72px; height: 72px;
   border-radius: 20px;
-  background: var(--color-primary);
-  font-size: 36px;
+  object-fit: cover;
   box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
 }
 .auth-title {

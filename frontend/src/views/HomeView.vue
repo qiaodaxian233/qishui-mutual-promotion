@@ -2,7 +2,7 @@
   <div class="home">
     <!-- 顶部品牌区 -->
     <header class="brand">
-      <div class="brand-emoji">🎵</div>
+      <img src="/logo.png" alt="汽水音乐互推" class="brand-logo" />
       <h1 class="brand-title">汽水音乐互推</h1>
       <p class="brand-slogan">让独立音乐人互相听见</p>
     </header>
@@ -172,19 +172,13 @@ onMounted(async () => {
   padding: 32px 0 24px;
 }
 
-.brand-emoji {
-  /* 套绿色圆底,Windows/Mac/Android 的 emoji 都是彩色的(紫色音符),
-     CSS color 改不动 emoji 本身,但加圆形绿底能强化品牌识别 */
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 96px;
-  height: 96px;
-  font-size: 52px;
+.brand-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 22px;
   margin-bottom: 12px;
-  border-radius: 50%;
-  background: var(--color-primary);
-  box-shadow: 0 6px 20px rgba(26, 254, 73, 0.35);
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
 }
 
 .brand-title {

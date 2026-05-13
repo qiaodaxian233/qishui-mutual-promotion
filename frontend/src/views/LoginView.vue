@@ -4,7 +4,7 @@
 
     <div class="auth-content">
       <div class="logo-wrap">
-        <div class="logo">🎵</div>
+        <img src="/logo.png" alt="汽水音乐互推" class="logo" />
       </div>
       <h1 class="auth-title">欢迎回来</h1>
       <p class="auth-sub">登录你的汽水互推账号</p>
@@ -99,9 +99,7 @@ function goRegister() { router.push({ name: 'register', query: route.query.redir
 .auth-content { padding: 0 24px 60px; max-width: 400px; margin: 0 auto; }
 .logo-wrap { text-align: center; margin-bottom: 20px; }
 .logo {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 72px; height: 72px; border-radius: 20px;
-  background: var(--color-primary); font-size: 36px;
+  width: 72px; height: 72px; border-radius: 20px; object-fit: cover;
   box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
 }
 .auth-title { text-align: center; font-size: 26px; font-weight: 700; color: var(--color-text-primary); margin: 0 0 6px; letter-spacing: -0.5px; }
