@@ -277,7 +277,7 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
        )
      ) snap ON snap.task_id = t.id
      WHERE ${conditions.join(' AND ')}
-     ORDER BY t.is_pinned DESC, t.is_welfare DESC, t.created_at DESC
+     ORDER BY t.is_pinned DESC, t.created_at DESC
      LIMIT ? OFFSET ?`,
     params
   );
