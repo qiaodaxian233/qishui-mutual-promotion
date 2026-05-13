@@ -214,4 +214,59 @@ router.post('/:id/pin', requireAuth, strictLimiter, async (req, res) => {
   res.json(result);
 });
 
+/**
+ * PUT /api/tasks/:id  编辑任务(仅发布者可改)
+ */
+router.put('/:id', requireAuth, async (req, res) => {
+  const taskId = parseInt(req.params.id, 10);
+  if (!Number.isInteger(taskId) || taskId <= 0) {
+    return res.status(400).json({ ok: false, error: '任务 ID 不正确' });
+  }
+
+  const pool = require('../config/db');
+
+  // 验证是发布者
+  const [[task]] = await pool.query(
+    `SELECT id, publisher_id, status, reward_points, quota_total, quota_remaining FROM tasks WHERE id = ?`,
+    [taskId]
+  );
+  if (!task) return res.status(404).json({ ok: false, error: '任务不存在' });
+  if (task.publisher_id !== req.user.id) {
+    return res.status(403).json({ ok: false, error: '只能编辑自己的任务' });
+  }
+  if (task.status !== 'active') {
+    return res.status(400).json({ ok: false, error: '只有进行中的任务可以编辑' });
+  }
+
+  const updates = [];
+  const params = [];
+  const { reward, quota, expireDays } = req.body;
+
+  if (reward && Number.isInteger(reward) && reward >= 1 && reward <= 50) {
+    updates.push('reward_points = ?');
+    params.push(reward);
+  }
+  if (quota && Number.isInteger(quota) && quota >= task.quota_total) {
+    // 只能增加名额不能减少(已有人接的不能删)
+    const diff = quota - task.quota_total;
+    updates.push('quota_total = ?');
+    params.push(quota);
+    updates.push('quota_remaining = quota_remaining + ?');
+    params.push(diff);
+  }
+  if (expireDays && Number.isInteger(expireDays) && expireDays > 0 && expireDays <= 30) {
+    updates.push('expires_at = DATE_ADD(NOW(), INTERVAL ? DAY)');
+    params.push(expireDays);
+  }
+
+  if (updates.length === 0) {
+    return res.json({ ok: false, error: '没有有效的修改' });
+  }
+
+  params.push(taskId);
+  await pool.query(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`, params);
+
+  res.json({ ok: true, message: '修改成功' });
+});
+
 module.exports = router;

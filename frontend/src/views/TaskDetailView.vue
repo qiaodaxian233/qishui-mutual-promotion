@@ -47,7 +47,16 @@
 
       <!-- 任务信息卡 -->
       <section class="task-card">
-        <h3 class="card-title">任务信息</h3>
+        <div class="card-header-row">
+          <h3 class="card-title">任务信息</h3>
+          <van-button
+            v-if="isOwnTask && task.status === 'active'"
+            size="mini"
+            plain
+            type="primary"
+            @click="openEditDialog"
+          >✏️ 编辑</van-button>
+        </div>
 
         <div class="info-row">
           <span class="info-label">类型</span>
@@ -164,6 +173,20 @@
         </div>
       </section>
 
+      <!-- 编辑任务弹窗 -->
+      <van-dialog
+        v-model:show="editDialog.show"
+        title="编辑任务"
+        show-cancel-button
+        @confirm="onSaveEdit"
+      >
+        <div style="padding: 16px">
+          <van-field v-model="editDialog.reward" type="number" label="奖励积分" placeholder="每次奖励" />
+          <van-field v-model="editDialog.quota" type="number" label="总名额" placeholder="招募名额" />
+          <van-field v-model="editDialog.expireDays" type="number" label="延期天数" placeholder="从现在起延期几天" />
+        </div>
+      </van-dialog>
+
       <!-- 底部固定操作栏 -->
       <div class="action-bar">
         <!-- 已提交结果:回任务广场 -->
@@ -275,6 +298,9 @@ const screenshotPreview = ref(null);
 
 // Pin
 const pinning = ref(false);
+
+// Edit dialog
+const editDialog = ref({ show: false, reward: '', quota: '', expireDays: '' });
 
 const typeMeta = computed(() => {
   if (!task.value) return { label: '', tagType: 'default' };
@@ -435,6 +461,41 @@ async function onSubmit() {
   }
 }
 
+function openEditDialog() {
+  editDialog.value = {
+    show: true,
+    reward: String(task.value.reward_points),
+    quota: String(task.value.quota_total),
+    expireDays: ''
+  };
+}
+
+async function onSaveEdit() {
+  const body = {};
+  const r = parseInt(editDialog.value.reward);
+  const q = parseInt(editDialog.value.quota);
+  const d = parseInt(editDialog.value.expireDays);
+  if (r && r !== task.value.reward_points) body.reward = r;
+  if (q && q !== task.value.quota_total) body.quota = q;
+  if (d && d > 0) body.expireDays = d;
+
+  if (Object.keys(body).length === 0) {
+    showToast('没有修改');
+    return;
+  }
+  try {
+    const res = await api.put(`/tasks/${route.params.id}`, body);
+    if (res.ok) {
+      showToast({ message: '修改成功', type: 'success' });
+      await loadTask();
+    } else {
+      showFailToast(res.error || '修改失败');
+    }
+  } catch (err) {
+    showFailToast(err?.error || '修改失败');
+  }
+}
+
 async function onPinTask() {
   pinning.value = true;
   try {
@@ -585,6 +646,15 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.card-header-row .card-title {
+  margin: 0;
 }
 
 .info-row {
