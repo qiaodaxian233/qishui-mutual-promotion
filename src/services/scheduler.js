@@ -9,6 +9,8 @@
 const completionsService = require('./completions');
 const pool = require('../config/db');
 const pointsService = require('./points');
+const creditService = require('./credit');
+const notify = require('./notifications');
 
 const RECHECK_INTERVAL_MS = 10 * 60 * 1000;   // 10 分钟
 const EXPIRY_INTERVAL_MS = 30 * 60 * 1000;    // 30 分钟
@@ -56,7 +58,7 @@ async function runRecheckJob() {
 async function runClaimTimeoutJob() {
   try {
     const [rows] = await pool.query(
-      `SELECT id, task_id FROM task_completions
+      `SELECT id, task_id, user_id FROM task_completions
        WHERE status = 'claimed'
          AND claimed_at < DATE_SUB(NOW(), INTERVAL ? MINUTE)
        LIMIT 100`,
@@ -78,6 +80,17 @@ async function runClaimTimeoutJob() {
           [row.task_id]
         );
         await conn.commit();
+
+        // 通知 + 扣信用分
+        notify.send({
+          userId: row.user_id,
+          type: 'claim_timeout',
+          title: '接单超时',
+          content: '你有一个接单超过 30 分钟未提交,名额已释放',
+          refType: 'task',
+          refId: row.task_id
+        });
+        creditService.adjust(row.user_id, -10, '接单超时未提交', 'completion', row.id);
       } catch (e) {
         await conn.rollback();
       } finally {
@@ -132,6 +145,17 @@ async function runTaskExpiryJob() {
         );
 
         await conn.commit();
+
+        const refund = (task.reward_points * task.quota_remaining) +
+                       (task.platform_fee - Math.ceil((task.quota_total - task.quota_remaining) * task.reward_points * 0.10));
+        notify.send({
+          userId: task.publisher_id,
+          type: 'task_expired',
+          title: '任务已过期',
+          content: refund > 0 ? `已退还 ${refund} 积分` : '任务已全部完成',
+          refType: 'task',
+          refId: task.id
+        });
       } catch (e) {
         await conn.rollback();
         console.error(`[scheduler] 过期任务 #${task.id} 处理失败:`, e.message);

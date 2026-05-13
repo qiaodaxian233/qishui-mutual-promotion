@@ -142,6 +142,29 @@
         </van-pull-refresh>
       </div>
 
+      <!-- 功能入口 -->
+      <section class="menu-card">
+        <van-cell title="📝 个人资料" is-link @click="$router.push('/profile')" />
+        <van-cell title="🔔 消息通知" is-link @click="$router.push('/notifications')">
+          <template #value>
+            <span v-if="unreadCount > 0" class="badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+          </template>
+        </van-cell>
+        <van-cell title="💰 积分明细" is-link @click="$router.push('/points')" />
+        <van-cell
+          v-if="userStore.user?.role === 'admin'"
+          title="🔧 管理后台"
+          is-link
+          @click="$router.push('/admin/dashboard')"
+        />
+        <van-cell
+          v-if="userStore.user?.role === 'admin'"
+          title="🎁 福利任务发布"
+          is-link
+          @click="$router.push('/admin/welfare')"
+        />
+      </section>
+
       <!-- 退出登录 -->
       <div class="logout-wrap">
         <van-button block plain size="small" @click="onLogout">退出登录</van-button>
@@ -163,6 +186,7 @@ const userStore = useUserStore();
 
 const activeTab = ref('published');
 const PAGE_SIZE = 20;
+const unreadCount = ref(0);
 
 // 发布的任务列表
 const pub = reactive({
@@ -287,6 +311,9 @@ async function onLogout() {
 onActivated(() => {
   if (userStore.isLoggedIn) {
     userStore.refreshMe();
+    api.get('/notifications/unread').then(res => {
+      if (res.ok) unreadCount.value = res.count;
+    }).catch(() => {});
   }
 });
 </script>
@@ -404,5 +431,25 @@ onActivated(() => {
 
 .logout-wrap {
   padding: 24px 16px 16px;
+}
+
+.menu-card {
+  margin: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+}
+.badge {
+  display: inline-block;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  background: #ff4d4f;
+  border-radius: 9px;
+  padding: 0 5px;
 }
 </style>

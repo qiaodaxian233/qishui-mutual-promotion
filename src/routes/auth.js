@@ -9,6 +9,7 @@
  */
 const express = require('express');
 const router = express.Router();
+const pool = require('../config/db');
 
 const config = require('../config');
 const auth = require('../services/auth');
@@ -168,9 +169,47 @@ router.get('/me', requireAuth, (req, res) => {
       nickname: req.user.nickname,
       avatarUrl: req.user.avatar_url,
       points: req.user.points,
-      creditScore: req.user.credit_score
+      creditScore: req.user.credit_score,
+      role: req.user.role || 'user'
     }
   });
+});
+
+/**
+ * 修改个人资料
+ */
+router.put('/profile', requireAuth, async (req, res) => {
+  const { nickname } = req.body;
+  if (nickname !== undefined) {
+    if (!isValidNickname(nickname)) {
+      return res.status(400).json({ ok: false, error: '昵称 1-20 字,支持中英文数字下划线' });
+    }
+    await pool.query('UPDATE users SET nickname = ? WHERE id = ?', [nickname.trim(), req.user.id]);
+  }
+  const [[updated]] = await pool.query('SELECT id, email, nickname, avatar_url, points, credit_score, role FROM users WHERE id = ?', [req.user.id]);
+  res.json({ ok: true, user: updated });
+});
+
+/**
+ * 修改密码
+ */
+router.put('/password', requireAuth, strictLimiter, async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ ok: false, error: '请填写旧密码和新密码' });
+  }
+  if (!isValidPassword(newPassword)) {
+    return res.status(400).json({ ok: false, error: '新密码需 8-64 位,含字母+数字' });
+  }
+  const bcrypt = require('bcryptjs');
+  const [[row]] = await pool.query('SELECT password_hash FROM users WHERE id = ?', [req.user.id]);
+  const match = await bcrypt.compare(oldPassword, row.password_hash);
+  if (!match) {
+    return res.status(400).json({ ok: false, error: '旧密码不正确' });
+  }
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, req.user.id]);
+  res.json({ ok: true, message: '密码修改成功' });
 });
 
 module.exports = router;

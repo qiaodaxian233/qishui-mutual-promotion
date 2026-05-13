@@ -1,6 +1,6 @@
 {
   "name": "qishui-frontend",
-  "version": "0.5.7",
+  "version": "0.6.0",
   "private": true,
   "description": "汽水音乐互推平台 - 前端",
   "scripts": {

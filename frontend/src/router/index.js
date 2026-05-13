@@ -56,6 +56,24 @@ const routes = [
     component: () => import('@/views/AdminWelfareView.vue'),
     meta: { title: '福利任务发布', requiresAuth: true }
   },
+  {
+    path: '/admin/dashboard',
+    name: 'admin-dashboard',
+    component: () => import('@/views/AdminDashboardView.vue'),
+    meta: { title: '管理后台', requiresAuth: true }
+  },
+  {
+    path: '/profile',
+    name: 'profile',
+    component: () => import('@/views/ProfileView.vue'),
+    meta: { title: '个人资料', requiresAuth: true }
+  },
+  {
+    path: '/notifications',
+    name: 'notifications',
+    component: () => import('@/views/NotificationsView.vue'),
+    meta: { title: '消息通知', requiresAuth: true }
+  },
   // SPA 兜底:未匹配的全部回首页(用户刷新深层路由时不 404)
   {
     path: '/:catchAll(.*)',

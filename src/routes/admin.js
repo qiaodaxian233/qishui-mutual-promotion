@@ -113,4 +113,254 @@ router.get('/welfare', requireAuth, requireAdmin, async (req, res) => {
   res.json({ ok: true, tasks: rows });
 });
 
+// ============================================================
+// 数据统计面板
+// ============================================================
+
+/**
+ * GET /api/admin/stats  总览统计
+ */
+router.get('/stats', requireAuth, requireAdmin, async (req, res) => {
+  const [[users]] = await pool.query(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(status='active') AS active,
+       SUM(status='frozen') AS frozen,
+       SUM(status='banned') AS banned,
+       SUM(DATE(created_at) = CURDATE()) AS today_new
+     FROM users`
+  );
+
+  const [[tasks]] = await pool.query(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(status='active') AS active,
+       SUM(status='completed') AS completed,
+       SUM(status='expired') AS expired,
+       SUM(status='cancelled') AS cancelled,
+       SUM(is_welfare=1) AS welfare,
+       SUM(DATE(created_at) = CURDATE()) AS today_new
+     FROM tasks`
+  );
+
+  const [[completions]] = await pool.query(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(status='claimed') AS claimed,
+       SUM(status='auto_passed') AS auto_passed,
+       SUM(status='auto_rejected') AS auto_rejected,
+       SUM(status='manual_passed') AS manual_passed,
+       SUM(status='recheck_failed') AS recheck_failed,
+       SUM(status='timeout') AS timeout,
+       SUM(DATE(claimed_at) = CURDATE()) AS today_new
+     FROM task_completions`
+  );
+
+  const [[points]] = await pool.query(
+    `SELECT
+       SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END) AS total_earned,
+       SUM(CASE WHEN delta < 0 THEN ABS(delta) ELSE 0 END) AS total_spent,
+       SUM(CASE WHEN DATE(created_at) = CURDATE() AND delta > 0 THEN delta ELSE 0 END) AS today_earned,
+       SUM(CASE WHEN DATE(created_at) = CURDATE() AND delta < 0 THEN ABS(delta) ELSE 0 END) AS today_spent
+     FROM points_log`
+  );
+
+  // 最近 7 天每日接单数
+  const [dailyCompletions] = await pool.query(
+    `SELECT DATE(claimed_at) AS date, COUNT(*) AS count
+     FROM task_completions
+     WHERE claimed_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+     GROUP BY DATE(claimed_at)
+     ORDER BY date`
+  );
+
+  // 最近 7 天每日注册数
+  const [dailyRegistrations] = await pool.query(
+    `SELECT DATE(created_at) AS date, COUNT(*) AS count
+     FROM users
+     WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+     GROUP BY DATE(created_at)
+     ORDER BY date`
+  );
+
+  res.json({
+    ok: true,
+    users,
+    tasks,
+    completions,
+    points,
+    charts: { dailyCompletions, dailyRegistrations }
+  });
+});
+
+// ============================================================
+// 用户管理
+// ============================================================
+
+/**
+ * GET /api/admin/users  用户列表
+ */
+router.get('/users', requireAuth, requireAdmin, async (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+  const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+  const search = req.query.search || '';
+
+  let where = '1=1';
+  const params = [];
+  if (search) {
+    where = '(u.email LIKE ? OR u.nickname LIKE ?)';
+    params.push(`%${search}%`, `%${search}%`);
+  }
+
+  params.push(limit, offset);
+
+  const [rows] = await pool.query(
+    `SELECT u.id, u.email, u.nickname, u.points, u.credit_score,
+            u.role, u.status, u.created_at,
+            (SELECT COUNT(*) FROM tasks WHERE publisher_id = u.id) AS task_count,
+            (SELECT COUNT(*) FROM task_completions WHERE user_id = u.id) AS completion_count
+     FROM users u
+     WHERE ${where}
+     ORDER BY u.id DESC
+     LIMIT ? OFFSET ?`,
+    params
+  );
+
+  const [[{ total }]] = await pool.query(
+    `SELECT COUNT(*) AS total FROM users u WHERE ${where}`,
+    search ? [`%${search}%`, `%${search}%`] : []
+  );
+
+  res.json({ ok: true, users: rows, total });
+});
+
+/**
+ * POST /api/admin/users/:id/role  设置用户角色
+ */
+router.post('/users/:id/role', requireAuth, requireAdmin, async (req, res) => {
+  const { role } = req.body;
+  if (!['user', 'admin'].includes(role)) {
+    return res.status(400).json({ ok: false, error: '角色无效' });
+  }
+  await pool.query('UPDATE users SET role = ? WHERE id = ?', [role, req.params.id]);
+  res.json({ ok: true });
+});
+
+/**
+ * POST /api/admin/users/:id/status  设置用户状态(冻结/解冻/封禁)
+ */
+router.post('/users/:id/status', requireAuth, requireAdmin, async (req, res) => {
+  const { status, reason } = req.body;
+  if (!['active', 'frozen', 'banned'].includes(status)) {
+    return res.status(400).json({ ok: false, error: '状态无效' });
+  }
+  await pool.query(
+    'UPDATE users SET status = ?, banned_reason = ? WHERE id = ?',
+    [status, reason || null, req.params.id]
+  );
+  res.json({ ok: true });
+});
+
+/**
+ * POST /api/admin/users/:id/points  调整积分
+ */
+router.post('/users/:id/points', requireAuth, requireAdmin, async (req, res) => {
+  const { delta, note } = req.body;
+  if (!delta || typeof delta !== 'number') {
+    return res.status(400).json({ ok: false, error: '积分变动值无效' });
+  }
+  const pointsService = require('../services/points');
+  if (delta > 0) {
+    await pointsService.add({
+      userId: parseInt(req.params.id),
+      amount: delta,
+      type: 'admin_adjust',
+      note: note || '管理员调整'
+    });
+  } else {
+    await pointsService.deduct({
+      userId: parseInt(req.params.id),
+      amount: Math.abs(delta),
+      type: 'admin_adjust',
+      note: note || '管理员调整'
+    });
+  }
+  res.json({ ok: true });
+});
+
+// ============================================================
+// 任务管理
+// ============================================================
+
+/**
+ * GET /api/admin/tasks  全部任务列表
+ */
+router.get('/tasks', requireAuth, requireAdmin, async (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+  const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+  const status = req.query.status || '';
+
+  let where = '1=1';
+  const params = [];
+  if (status) {
+    where = 't.status = ?';
+    params.push(status);
+  }
+  params.push(limit, offset);
+
+  const [rows] = await pool.query(
+    `SELECT t.id, t.task_type, t.reward_points, t.quota_total, t.quota_remaining,
+            t.status, t.is_welfare, t.created_at, t.expires_at,
+            s.song_name, s.artist_name,
+            u.nickname AS publisher_nickname
+     FROM tasks t
+     JOIN songs s ON s.id = t.song_id
+     JOIN users u ON u.id = t.publisher_id
+     WHERE ${where}
+     ORDER BY t.id DESC
+     LIMIT ? OFFSET ?`,
+    params
+  );
+
+  res.json({ ok: true, tasks: rows });
+});
+
+// ============================================================
+// 接单管理
+// ============================================================
+
+/**
+ * GET /api/admin/completions  全部接单列表
+ */
+router.get('/completions', requireAuth, requireAdmin, async (req, res) => {
+  const limit = Math.min(Math.max(parseInt(req.query.limit || '50', 10), 1), 100);
+  const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
+  const status = req.query.status || '';
+
+  let where = '1=1';
+  const params = [];
+  if (status) {
+    where = 'c.status = ?';
+    params.push(status);
+  }
+  params.push(limit, offset);
+
+  const [rows] = await pool.query(
+    `SELECT c.id, c.task_id, c.user_id, c.status, c.points_awarded,
+            c.claimed_at, c.submitted_at, c.awarded_at,
+            s.song_name, u.nickname AS claimer_nickname,
+            t.task_type, t.reward_points
+     FROM task_completions c
+     JOIN tasks t ON t.id = c.task_id
+     JOIN songs s ON s.id = t.song_id
+     JOIN users u ON u.id = c.user_id
+     WHERE ${where}
+     ORDER BY c.id DESC
+     LIMIT ? OFFSET ?`,
+    params
+  );
+
+  res.json({ ok: true, completions: rows });
+});
+
 module.exports = router;

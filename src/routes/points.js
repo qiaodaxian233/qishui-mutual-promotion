@@ -50,4 +50,13 @@ router.get('/history', requireAuth, async (req, res) => {
   });
 });
 
+/**
+ * 信用分变动记录
+ */
+router.get('/credit-log', requireAuth, async (req, res) => {
+  const creditService = require('../services/credit');
+  const items = await creditService.getLog(req.user.id, { limit: 50 });
+  res.json({ ok: true, items });
+});
+
 module.exports = router;

@@ -26,6 +26,8 @@ const pool = require('../config/db');
 const parser = require('./qishui-parser');
 const songsService = require('./songs');
 const pointsService = require('./points');
+const notify = require('./notifications');
+const creditService = require('./credit');
 
 const RECHECK_HOURS = 24;
 const MIN_SUBMIT_INTERVAL_SECONDS = 10;  // 领取后至少 10 秒才能提交,防脚本秒过
@@ -68,6 +70,10 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
   if (new Date(taskRow.expires_at) < new Date()) {
     return { ok: false, error: '任务已过期' };
   }
+
+  // 信用分检查
+  const creditCheck = await creditService.canClaim(userId);
+  if (!creditCheck.ok) return creditCheck;
 
   // 抓最新互动数作为 baseline
   let baseline;
@@ -136,6 +142,16 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
     );
 
     await conn.commit();
+    // 通知发布者有人接单
+    notify.send({
+      userId: task.publisher_id,
+      type: 'task_claimed',
+      title: '有人接了你的任务',
+      content: `你的${task.task_type === 'like' ? '点赞' : task.task_type}任务被接单了,剩余名额 ${task.quota_remaining - 1}`,
+      refType: 'task',
+      refId: taskId
+    });
+
     return {
       ok: true,
       completionId,
@@ -276,6 +292,15 @@ async function submitCompletion({ userId, completionId, screenshotPath, screensh
       conn.release();
     }
 
+    notify.send({
+      userId,
+      type: 'verify_failed',
+      title: '验证未通过',
+      content: getRejectMessage(c.task_type, baseVal, currVal),
+      refType: 'completion',
+      refId: completionId
+    });
+
     return {
       ok: false,
       status: 'auto_rejected',
@@ -296,6 +321,15 @@ async function submitCompletion({ userId, completionId, screenshotPath, screensh
       WHERE id = ?`,
     [RECHECK_HOURS, completionId]
   );
+
+  notify.send({
+    userId,
+    type: 'verify_passed',
+    title: '验证通过',
+    content: `你的任务验证通过,${c.reward_points} 积分将在 ${RECHECK_HOURS}h 回查后发放`,
+    refType: 'completion',
+    refId: completionId
+  });
 
   return {
     ok: true,
@@ -397,6 +431,19 @@ async function recheckCompletion(completionId) {
         [c.reward_points, completionId]
       );
       await conn.commit();
+
+      notify.send({
+        userId: c.user_id,
+        type: 'points_awarded',
+        title: '积分已到账',
+        content: `回查通过,${c.reward_points} 积分已发放到你的账户`,
+        refType: 'completion',
+        refId: completionId
+      });
+
+      // 回查通过加信用分
+      creditService.adjust(c.user_id, +3, '回查通过,积分发放', 'completion', completionId);
+
       return { ok: true, status: 'awarded', awarded: c.reward_points };
     } catch (err) {
       await conn.rollback();
@@ -413,7 +460,19 @@ async function recheckCompletion(completionId) {
         WHERE id = ?`,
       [completionId]
     );
-    // TODO 阶段 5/6:此处扣接单者信用分
+
+    notify.send({
+      userId: c.user_id,
+      type: 'verify_failed',
+      title: '回查未通过',
+      content: '24h 回查发现互动已被撤回,积分不予发放',
+      refType: 'completion',
+      refId: completionId
+    });
+
+    // 扣信用分
+    creditService.adjust(c.user_id, -20, '回查发现互动撤回', 'completion', completionId);
+
     return { ok: false, status: 'recheck_failed', error: '互动已被撤回' };
   }
 }
