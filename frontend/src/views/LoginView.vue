@@ -39,6 +39,18 @@
         </div>
       </div>
 
+      <!-- 记住账号 -->
+      <div class="remember-row">
+        <div
+          class="tos-check"
+          :class="{ checked: rememberEmail }"
+          @click="rememberEmail = !rememberEmail"
+        >
+          <span v-if="rememberEmail" class="check-icon">✓</span>
+        </div>
+        <span class="remember-text">记住账号</span>
+      </div>
+
       <button
         class="submit-btn"
         :class="{ loading, disabled: !canLogin }"
@@ -66,15 +78,22 @@ const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
 
-const email = ref('');
+const email = ref(localStorage.getItem('qishui_saved_email') || '');
 const password = ref('');
 const showPwd = ref(false);
+const rememberEmail = ref(!!localStorage.getItem('qishui_saved_email'));
 const loading = ref(false);
 
 const canLogin = computed(() => email.value.includes('@') && password.value.length >= 8);
 
 async function onLogin() {
   if (!canLogin.value || loading.value) return;
+  // 保存/清除邮箱
+  if (rememberEmail.value) {
+    localStorage.setItem('qishui_saved_email', email.value);
+  } else {
+    localStorage.removeItem('qishui_saved_email');
+  }
   loading.value = true;
   try {
     const res = await api.post('/auth/login', { email: email.value, password: password.value });
@@ -118,8 +137,16 @@ function goRegister() { router.push({ name: 'register', query: route.query.redir
 .pwd-row { position: relative; }
 .pwd-row .apple-input { padding-right: 48px; }
 .pwd-toggle { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; cursor: pointer; user-select: none; }
+.remember-row { display: flex; align-items: center; gap: 8px; margin-top: 16px; }
+.tos-check {
+  width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--color-text-disabled);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.tos-check.checked { background: var(--color-primary); border-color: var(--color-primary); }
+.check-icon { color: #fff; font-size: 12px; font-weight: 700; }
+.remember-text { font-size: 13px; color: var(--color-text-secondary); }
 .submit-btn {
-  width: 100%; height: 52px; margin-top: 28px; border: none; border-radius: 14px;
+  width: 100%; height: 52px; margin-top: 24px; border: none; border-radius: 14px;
   background: var(--color-primary); color: var(--color-on-primary);
   font-size: 17px; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px;
 }

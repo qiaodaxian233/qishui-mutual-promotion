@@ -9,7 +9,7 @@ const auth = require('../services/auth');
  */
 async function requireAuth(req, res, next) {
   const token = extractToken(req);
-  const userId = auth.getUserIdByToken(token);
+  const userId = await auth.getUserIdByToken(token);
 
   if (!userId) {
     return res.status(401).json({ ok: false, error: '未登录或登录已过期' });
@@ -33,7 +33,7 @@ async function requireAuth(req, res, next) {
  */
 async function optionalAuth(req, res, next) {
   const token = extractToken(req);
-  const userId = auth.getUserIdByToken(token);
+  const userId = await auth.getUserIdByToken(token);
   if (userId) {
     const user = await auth.getUserById(userId);
     if (user && user.status === 'active') {

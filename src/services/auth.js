@@ -19,17 +19,14 @@ const {
 } = require('../utils/crypto');
 const { extractDomain } = require('../utils/validate');
 
-// token => { userId, createdAt }
-// 7 天后过期(简易内存方案,重启失效)
-const tokenStore = new Map();
-const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// token 存数据库,重启不丢
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;  // 30 天
 
-// 定期清理过期 token(每小时)
-setInterval(() => {
-  const now = Date.now();
-  for (const [t, info] of tokenStore.entries()) {
-    if (now - info.createdAt > TOKEN_TTL_MS) tokenStore.delete(t);
-  }
+// 定期清理过期 session(每小时)
+setInterval(async () => {
+  try {
+    await pool.query(`DELETE FROM user_sessions WHERE expires_at < NOW()`);
+  } catch {}
 }, 60 * 60 * 1000);
 
 /**
@@ -143,9 +140,13 @@ async function login({ email, password, ip }) {
     return { ok: false, error: '邮箱或密码错误' };
   }
 
-  // 生成 token 入内存
+  // 生成 token 存数据库
   const token = generateToken();
-  tokenStore.set(token, { userId: user.id, createdAt: Date.now() });
+  const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
+  await pool.query(
+    `INSERT INTO user_sessions (token, user_id, expires_at) VALUES (?, ?, ?)`,
+    [token, user.id, expiresAt]
+  );
 
   // 更新最后登录
   const lastLoginIpHash = ip ? sha256WithSalt(ip) : null;
@@ -171,22 +172,26 @@ async function login({ email, password, ip }) {
 /**
  * 校验 token,返回 userId 或 null
  */
-function getUserIdByToken(token) {
+async function getUserIdByToken(token) {
   if (!token) return null;
-  const info = tokenStore.get(token);
-  if (!info) return null;
-  if (Date.now() - info.createdAt > TOKEN_TTL_MS) {
-    tokenStore.delete(token);
+  try {
+    const [[row]] = await pool.query(
+      `SELECT user_id FROM user_sessions WHERE token = ? AND expires_at > NOW() LIMIT 1`,
+      [token]
+    );
+    return row ? row.user_id : null;
+  } catch {
     return null;
   }
-  return info.userId;
 }
 
 /**
  * 登出
  */
-function logout(token) {
-  if (token) tokenStore.delete(token);
+async function logout(token) {
+  if (token) {
+    try { await pool.query(`DELETE FROM user_sessions WHERE token = ?`, [token]); } catch {}
+  }
 }
 
 /**
