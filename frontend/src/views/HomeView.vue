@@ -52,6 +52,7 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'HomeView' });
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
@@ -99,7 +100,7 @@ onMounted(async () => {
 <style scoped>
 .home {
   min-height: 100vh;
-  padding: 24px 16px 80px;
+  padding: 24px 16px 100px;
   position: relative;
 }
 

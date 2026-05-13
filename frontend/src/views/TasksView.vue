@@ -114,6 +114,7 @@
 </template>
 
 <script setup>
+defineOptions({ name: 'TasksView' });
 import { ref, computed, onActivated } from 'vue';
 import { useRouter } from 'vue-router';
 import { showToast } from 'vant';
@@ -260,7 +261,7 @@ async function refreshSilently() {
 .tasks-page {
   min-height: 100vh;
   background: var(--page-bg);
-  padding-bottom: 32px;
+  padding-bottom: 70px;  /* tabbar 50 + spacing */
 }
 
 .list-wrap {
