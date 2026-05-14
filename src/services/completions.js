@@ -107,19 +107,26 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
     };
   }
 
-  // 接单冷却:两次接单之间必须间隔 N 秒
-  const cooldown = taskRow.claim_cooldown_sec || 30;
+  // 接单冷却:根据歌曲当前赞数动态调整
+  // 赞越多 → 冷却越久(避免热门歌被风控检测)
+  const [[songInteraction]] = await pool.query(
+    `SELECT first_seen_likes AS likes FROM songs WHERE id = ?`, [taskRow.song_id]
+  );
+  const currentLikes = songInteraction?.likes || 0;
+  const dynamicCooldown = calcDynamicCooldown(currentLikes, taskRow.claim_cooldown_sec || 30);
+
   const [[lastClaim]] = await pool.query(
     `SELECT claimed_at FROM task_completions WHERE task_id = ? ORDER BY id DESC LIMIT 1`,
     [taskId]
   );
   if (lastClaim) {
     const elapsed = (Date.now() - new Date(lastClaim.claimed_at).getTime()) / 1000;
-    if (elapsed < cooldown) {
+    if (elapsed < dynamicCooldown) {
       return {
         ok: false,
-        error: `任务冷却中,请 ${Math.ceil(cooldown - elapsed)} 秒后再试`,
-        cooldown: true
+        error: `任务冷却中,请 ${Math.ceil(dynamicCooldown - elapsed)} 秒后再试`,
+        cooldown: true,
+        cooldownSec: Math.ceil(dynamicCooldown - elapsed)
       };
     }
   }
@@ -630,6 +637,25 @@ function getRejectMessage(taskType, baseVal, currVal) {
     return `${fieldName}数未变化(${baseVal}),请确认已在汽水完成${fieldName}`;
   }
   return `${fieldName}数变化异常(${baseVal} → ${currVal})`;
+}
+
+/**
+ * 根据歌曲当前赞数计算冷却时间(秒)
+ * 赞越多 → 涨赞越容易被检测 → 冷却越久
+ *
+ * 赞数        冷却时间
+ * < 50        基础冷却(默认30秒)
+ * 50-200      2 分钟
+ * 200-500     5 分钟
+ * 500-1000    10 分钟
+ * 1000+       20 分钟
+ */
+function calcDynamicCooldown(likes, baseCooldown) {
+  if (likes >= 1000) return Math.max(baseCooldown, 1200);  // 20 分钟
+  if (likes >= 500)  return Math.max(baseCooldown, 600);   // 10 分钟
+  if (likes >= 200)  return Math.max(baseCooldown, 300);   // 5 分钟
+  if (likes >= 50)   return Math.max(baseCooldown, 120);   // 2 分钟
+  return baseCooldown;                                      // 默认
 }
 
 module.exports = {

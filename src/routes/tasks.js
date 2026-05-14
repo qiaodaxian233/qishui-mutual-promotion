@@ -289,7 +289,7 @@ router.put('/:id', requireAuth, async (req, res) => {
 
   const updates = [];
   const params = [];
-  const { reward, quota, expireDays } = req.body;
+  const { reward, quota, expireDays, maxDailyClaims, claimCooldownSec } = req.body;
 
   if (reward && Number.isInteger(reward) && reward >= 1 && reward <= 50) {
     updates.push('reward_points = ?');
@@ -306,6 +306,14 @@ router.put('/:id', requireAuth, async (req, res) => {
   if (expireDays && Number.isInteger(expireDays) && expireDays > 0 && expireDays <= 30) {
     updates.push('expires_at = DATE_ADD(NOW(), INTERVAL ? DAY)');
     params.push(expireDays);
+  }
+  if (maxDailyClaims && Number.isInteger(maxDailyClaims) && maxDailyClaims >= 1 && maxDailyClaims <= 50) {
+    updates.push('max_daily_claims = ?');
+    params.push(maxDailyClaims);
+  }
+  if (claimCooldownSec && Number.isInteger(claimCooldownSec) && claimCooldownSec >= 10 && claimCooldownSec <= 3600) {
+    updates.push('claim_cooldown_sec = ?');
+    params.push(claimCooldownSec);
   }
 
   if (updates.length === 0) {

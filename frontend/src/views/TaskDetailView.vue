@@ -254,8 +254,13 @@
       >
         <div style="padding: 16px">
           <van-field v-model="editDialog.reward" type="number" label="奖励积分" placeholder="每次奖励" />
-          <van-field v-model="editDialog.quota" type="number" label="总名额" placeholder="招募名额" />
-          <van-field v-model="editDialog.expireDays" type="number" label="延期天数" placeholder="从现在起延期几天" />
+          <van-field v-model="editDialog.quota" type="number" label="总名额" placeholder="只能增加" />
+          <van-field v-model="editDialog.maxDaily" type="number" label="每日限量" placeholder="每天最多被接几单" />
+          <van-field v-model="editDialog.cooldown" type="number" label="冷却秒数" placeholder="两次接单间隔" />
+          <van-field v-model="editDialog.expireDays" type="number" label="延期天数" placeholder="从现在起延几天" />
+          <p style="font-size:11px;color:var(--color-text-disabled);margin:8px 0 0;padding:0 4px;">
+            冷却会根据赞数自动调整:50赞+自动2分钟, 500赞+自动10分钟, 1000赞+自动20分钟
+          </p>
         </div>
       </van-dialog>
 
@@ -642,6 +647,8 @@ function openEditDialog() {
     show: true,
     reward: String(task.value.reward_points),
     quota: String(task.value.quota_total),
+    maxDaily: String(task.value.max_daily_claims || 5),
+    cooldown: String(task.value.claim_cooldown_sec || 30),
     expireDays: ''
   };
 }
@@ -651,9 +658,13 @@ async function onSaveEdit() {
   const r = parseInt(editDialog.value.reward);
   const q = parseInt(editDialog.value.quota);
   const d = parseInt(editDialog.value.expireDays);
+  const md = parseInt(editDialog.value.maxDaily);
+  const cd = parseInt(editDialog.value.cooldown);
   if (r && r !== task.value.reward_points) body.reward = r;
   if (q && q !== task.value.quota_total) body.quota = q;
   if (d && d > 0) body.expireDays = d;
+  if (md && md !== (task.value.max_daily_claims || 5)) body.maxDailyClaims = md;
+  if (cd && cd !== (task.value.claim_cooldown_sec || 30)) body.claimCooldownSec = cd;
 
   if (Object.keys(body).length === 0) {
     showToast('没有修改');

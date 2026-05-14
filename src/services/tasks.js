@@ -267,15 +267,9 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0, 
   // 冷却中的任务暂时隐藏
   conditions.push(`(t.last_claimed_at IS NULL OR NOW() > DATE_ADD(t.last_claimed_at, INTERVAL COALESCE(t.claim_cooldown_sec, 30) SECOND))`);
 
-  // 隐藏用户已接过的任务
+  // 隐藏用户已接过的任务(自己的任务保留显示)
   if (userId) {
     conditions.push(`NOT EXISTS (SELECT 1 FROM task_completions tc WHERE tc.task_id = t.id AND tc.user_id = ?)`);
-    params.push(userId);
-  }
-
-  // 隐藏自己发布的任务
-  if (userId) {
-    conditions.push(`t.publisher_id != ?`);
     params.push(userId);
   }
 
