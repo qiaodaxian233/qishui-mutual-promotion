@@ -117,7 +117,7 @@ async function extractText(imagePath) {
 /**
  * 检测红心是否点亮
  * 原理:汽水音乐的红心在底部偏左,点亮后是红色/粉色
- * 扫描图片下方 1/4 区域的左侧 1/3,统计红色像素占比
+ * 扫描图片下方区域,统计红色/粉色像素占比
  */
 async function detectRedHeart(imagePath) {
   try {
@@ -126,17 +126,16 @@ async function detectRedHeart(imagePath) {
     const w = meta.width;
     const h = meta.height;
 
-    // 裁剪底部 25% 左侧 40% 区域(红心通常在这里)
-    const cropTop = Math.floor(h * 0.75);
+    // 扫描底部 35% 左侧 50% (覆盖各种布局的红心位置)
+    const cropTop = Math.floor(h * 0.65);
     const cropHeight = h - cropTop;
-    const cropWidth = Math.floor(w * 0.4);
+    const cropWidth = Math.floor(w * 0.5);
 
     const { data, info } = await img
       .extract({ left: 0, top: cropTop, width: cropWidth, height: cropHeight })
       .raw()
       .toBuffer({ resolveWithObject: true });
 
-    // 统计红色像素(R > 180, G < 100, B < 100)
     let redPixels = 0;
     const totalPixels = info.width * info.height;
     const channels = info.channels;
@@ -145,11 +144,12 @@ async function detectRedHeart(imagePath) {
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
-      if (r > 180 && g < 100 && b < 100) {
+      // 红色(纯红心)
+      if (r > 170 && g < 110 && b < 110) {
         redPixels++;
       }
-      // 粉红色也算(点赞的颜色可能偏粉)
-      if (r > 200 && g < 130 && b < 150 && r > g * 1.5) {
+      // 粉红/玫红色(不同主题下的点赞色)
+      else if (r > 180 && g < 140 && b < 160 && r > g * 1.3) {
         redPixels++;
       }
     }
@@ -177,11 +177,10 @@ async function detectProgress(imagePath) {
     const w = meta.width;
     const h = meta.height;
 
-    // 裁剪进度条区域:从底部 18% 到底部 8%
-    const cropTop = Math.floor(h * 0.82);
-    const cropBottom = Math.floor(h * 0.92);
+    // 扫描范围:底部 20% 到底部 5%(覆盖更大区域)
+    const cropTop = Math.floor(h * 0.80);
+    const cropBottom = Math.floor(h * 0.95);
     const cropHeight = cropBottom - cropTop;
-
     if (cropHeight <= 0) return null;
 
     const { data, info } = await img
@@ -193,69 +192,55 @@ async function detectProgress(imagePath) {
     const scanWidth = info.width;
     const scanHeight = info.height;
 
-    // 方法1:找白色/亮色圆点(进度指示器)
-    // 逐像素找最亮的连续区域
-    let brightestX = 0;
-    let brightestScore = 0;
+    // 逐行扫描,找每行中间偏右的亮色像素簇
+    // 进度条圆点是该行中独立的亮色区域
+    let dotPositions = [];
 
     for (let y = 0; y < scanHeight; y++) {
-      for (let x = 10; x < scanWidth - 10; x++) {
+      // 从右往左扫,找第一个亮色簇
+      let rightBrightX = -1;
+      let streak = 0;
+
+      for (let x = scanWidth - 20; x >= 20; x--) {
         const idx = (y * scanWidth + x) * channels;
         const r = data[idx], g = data[idx + 1], b = data[idx + 2];
         const brightness = (r + g + b) / 3;
 
-        // 白色/浅色像素(进度条圆点通常是白色的)
-        if (brightness > 200 && Math.abs(r - g) < 30 && Math.abs(g - b) < 30) {
-          // 检查周围也是亮色的(圆点不是单个像素)
-          let neighbors = 0;
-          for (let dx = -2; dx <= 2; dx++) {
-            const nx = x + dx;
-            if (nx < 0 || nx >= scanWidth) continue;
-            const nIdx = (y * scanWidth + nx) * channels;
-            const nb = (data[nIdx] + data[nIdx + 1] + data[nIdx + 2]) / 3;
-            if (nb > 180) neighbors++;
+        if (brightness > 180 && Math.abs(r - g) < 40 && Math.abs(g - b) < 40) {
+          streak++;
+          if (streak >= 4 && rightBrightX === -1) {
+            rightBrightX = x + streak;
           }
-          if (neighbors >= 3 && brightness > brightestScore) {
-            brightestScore = brightness;
-            brightestX = x;
-          }
+        } else {
+          // 找到了一个簇然后断了,记录
+          if (rightBrightX > 0) break;
+          streak = 0;
         }
       }
-    }
 
-    // 方法2:找左右亮度差(已播放部分vs未播放部分)
-    let leftBright = 0, rightBright = 0, leftCount = 0, rightCount = 0;
-    const midX = Math.floor(scanWidth / 2);
-
-    for (let y = 0; y < scanHeight; y++) {
-      for (let x = 10; x < scanWidth - 10; x++) {
-        const idx = (y * scanWidth + x) * channels;
-        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-        if (x < midX) { leftBright += brightness; leftCount++; }
-        else { rightBright += brightness; rightCount++; }
+      if (rightBrightX > 0) {
+        dotPositions.push(rightBrightX);
       }
     }
 
-    const leftAvg = leftCount > 0 ? leftBright / leftCount : 0;
-    const rightAvg = rightCount > 0 ? rightBright / rightCount : 0;
-
-    // 综合判断
-    let progress = 0;
-
-    if (brightestScore > 200) {
-      // 用圆点位置算进度
-      progress = brightestX / scanWidth;
-      console.log(`[local-verify] 进度检测(圆点法): 圆点在 x=${brightestX}/${scanWidth} = ${(progress * 100).toFixed(1)}%`);
-    } else {
-      // 圆点没找到,用亮度差判断
-      // 如果左边比右边亮很多,说明已播放过半
-      if (leftAvg > rightAvg * 1.1) {
-        progress = 0.6;
-      } else {
-        progress = 0.3;
-      }
-      console.log(`[local-verify] 进度检测(亮度法): 左=${leftAvg.toFixed(0)} 右=${rightAvg.toFixed(0)} → ${(progress * 100).toFixed(1)}%`);
+    if (dotPositions.length < 2) {
+      console.log(`[local-verify] 进度检测: 未找到足够圆点样本`);
+      return null;
     }
+
+    // 过滤异常值:只保留出现最多的区域
+    dotPositions.sort((a, b) => a - b);
+    // 取中间 60% 去掉两端噪点
+    const trimStart = Math.floor(dotPositions.length * 0.2);
+    const trimEnd = Math.floor(dotPositions.length * 0.8);
+    const trimmed = dotPositions.slice(trimStart, trimEnd);
+
+    if (trimmed.length === 0) return null;
+
+    const avgX = trimmed.reduce((s, x) => s + x, 0) / trimmed.length;
+    const progress = avgX / scanWidth;
+
+    console.log(`[local-verify] 进度检测: 平均位置 x=${Math.round(avgX)}/${scanWidth} = ${(progress * 100).toFixed(1)}%, 采样${dotPositions.length}行`);
 
     return progress > 0.45;
   } catch (err) {
