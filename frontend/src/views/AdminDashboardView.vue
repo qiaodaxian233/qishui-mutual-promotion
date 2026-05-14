@@ -171,9 +171,8 @@
             {{ c.points_awarded ? `· 发放 ${c.points_awarded}` : '' }}
           </div>
           <!-- 截图预览 -->
-          <div v-if="c.screenshot" class="screenshot-wrap" @click="showImagePreview({ images: [c.screenshot] })">
+          <div v-if="c.screenshot" class="screenshot-wrap" @click="openScreenshot(c.screenshot)">
             <img :src="c.screenshot" class="screenshot-thumb" />
-            <span class="screenshot-hint">点击放大</span>
           </div>
           <!-- 审核按钮 -->
           <div v-if="['auto_passed', 'auto_rejected', 'claimed'].includes(c.status)" class="review-actions">
@@ -191,7 +190,7 @@
 <script setup>
 defineOptions({ name: 'AdminDashboardView' });
 import { ref, onMounted, watch } from 'vue';
-import { showFailToast, showSuccessToast, showImagePreview } from 'vant';
+import { showFailToast, showSuccessToast } from 'vant';
 import api from '@/api';
 
 const forbidden = ref(false);
@@ -287,6 +286,21 @@ async function onReview(id, action) {
   } catch (err) { showFailToast(err?.error || '操作失败'); }
 }
 
+function openScreenshot(src) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;';
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:95%;max-height:90vh;object-fit:contain;border-radius:8px;';
+  const closeBtn = document.createElement('div');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;color:#fff;font-size:28px;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.2);border-radius:50%;';
+  overlay.appendChild(img);
+  overlay.appendChild(closeBtn);
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
 function openPointsDialog(u) {
   pointsDialog.value = { show: true, userId: u.id, nickname: u.nickname, delta: '', note: '' };
 }
@@ -379,8 +393,7 @@ onMounted(() => { loadStats(); });
 .filter-chip.active { background: rgba(26,254,73,.12); border-color: var(--color-primary-dark); color: var(--color-primary-dark); font-weight: 600; }
 
 /* 截图预览 */
-.screenshot-wrap { margin: 8px 0; cursor: pointer; position: relative; }
-.screenshot-thumb { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--divider); }
-.screenshot-hint { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,.5); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+.screenshot-wrap { margin: 8px 0; cursor: pointer; }
+.screenshot-thumb { width: 100px; height: 100px; object-fit: cover; border-radius: 8px; border: 1px solid var(--divider); }
 .review-actions { display: flex; gap: 8px; margin-top: 6px; }
 </style>

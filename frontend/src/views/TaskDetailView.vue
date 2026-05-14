@@ -541,7 +541,19 @@ function compStatusLabel(status) {
 }
 
 function openPreview(src) {
-  window.open(src, '_blank');
+  // 创建全屏遮罩预览,点击关闭
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;';
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:95%;max-height:90vh;object-fit:contain;border-radius:8px;';
+  const closeBtn = document.createElement('div');
+  closeBtn.textContent = '✕';
+  closeBtn.style.cssText = 'position:absolute;top:16px;right:16px;color:#fff;font-size:28px;cursor:pointer;width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.2);border-radius:50%;';
+  overlay.appendChild(img);
+  overlay.appendChild(closeBtn);
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
 }
 
 function triggerUpload() {
@@ -996,8 +1008,8 @@ onMounted(() => {
   margin-top: 6px;
 }
 .comp-img {
-  width: 100%;
-  max-height: 240px;
+  width: 120px;
+  height: 120px;
   object-fit: cover;
   border-radius: 8px;
   border: 1px solid var(--divider);
