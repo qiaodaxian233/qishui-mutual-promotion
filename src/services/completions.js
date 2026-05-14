@@ -201,7 +201,7 @@ async function submitCompletion({ userId, completionId, screenshotPath, screensh
   const c = rows[0];
 
   if (c.user_id !== userId) return { ok: false, error: '不能提交他人的接单' };
-  if (c.status !== 'claimed') {
+  if (c.status !== 'claimed' && c.status !== 'auto_rejected') {
     return { ok: false, error: `当前状态(${c.status})不可提交` };
   }
 

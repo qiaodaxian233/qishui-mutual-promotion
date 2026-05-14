@@ -141,7 +141,28 @@ router.get('/:id', optionalAuth, async (req, res) => {
   if (!task) {
     return res.status(404).json({ ok: false, error: '任务不存在' });
   }
-  res.json({ ok: true, task });
+
+  // 如果用户已登录,查是否有进行中的接单
+  let myClaim = null;
+  if (req.user) {
+    const pool = require('../config/db');
+    const [claims] = await pool.query(
+      `SELECT id, status, claimed_at FROM task_completions
+       WHERE task_id = ? AND user_id = ? AND status IN ('claimed', 'auto_rejected')
+       ORDER BY id DESC LIMIT 1`,
+      [taskId, req.user.id]
+    );
+    if (claims.length > 0) {
+      myClaim = {
+        completionId: claims[0].id,
+        status: claims[0].status,
+        claimedAt: claims[0].claimed_at,
+        shareLink: task.share_link
+      };
+    }
+  }
+
+  res.json({ ok: true, task, myClaim });
 });
 
 /**

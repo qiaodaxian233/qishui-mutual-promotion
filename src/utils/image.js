@@ -42,23 +42,32 @@ const upload = multer({
  * @returns {Object} { filename, filepath, size, hash }
  */
 async function compressAndSave(buffer, prefix) {
-  // SHA256 用于查重
   const hash = crypto.createHash('sha256').update(buffer).digest('hex');
 
-  const filename = `${prefix}_${Date.now()}.webp`;
-  const filepath = path.join(UPLOAD_DIR, filename);
-
-  // sharp 压缩:缩到 720px 宽,转 WebP
-  const info = await sharp(buffer)
-    .resize({ width: TARGET_WIDTH, withoutEnlargement: true })
-    .webp({ quality: WEBP_QUALITY })
-    .toFile(filepath);
+  // 尝试 sharp 压缩,失败则直接保存原图
+  let filename, filepath, fileSize;
+  try {
+    filename = `${prefix}_${Date.now()}.webp`;
+    filepath = path.join(UPLOAD_DIR, filename);
+    const info = await sharp(buffer)
+      .resize({ width: TARGET_WIDTH, withoutEnlargement: true })
+      .webp({ quality: WEBP_QUALITY })
+      .toFile(filepath);
+    fileSize = info.size;
+  } catch (sharpErr) {
+    console.warn('[image] sharp 压缩失败,保存原图:', sharpErr.message);
+    // 降级:直接保存原始文件
+    filename = `${prefix}_${Date.now()}.jpg`;
+    filepath = path.join(UPLOAD_DIR, filename);
+    fs.writeFileSync(filepath, buffer);
+    fileSize = buffer.length;
+  }
 
   return {
     filename,
     filepath,
     relativePath: `/uploads/screenshots/${filename}`,
-    size: info.size,
+    size: fileSize,
     hash
   };
 }

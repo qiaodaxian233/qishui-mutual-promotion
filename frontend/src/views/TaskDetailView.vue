@@ -196,6 +196,15 @@
           <span class="result-emoji">😥</span>
           <h3>验证未通过</h3>
           <p>{{ submitResult.error }}</p>
+          <van-button
+            round
+            type="primary"
+            size="small"
+            class="retry-btn"
+            @click="onRetry"
+          >
+            重新提交
+          </van-button>
         </div>
       </section>
 
@@ -374,11 +383,36 @@ async function loadTask() {
       return;
     }
     task.value = res.task;
+
+    // 恢复已有的接单状态(页面刷新/返回时不丢)
+    if (res.myClaim && !claimResult.value) {
+      claimResult.value = {
+        ok: true,
+        completionId: res.myClaim.completionId,
+        shareLink: res.myClaim.shareLink,
+        tip: getLocalTip(res.task.task_type),
+        restored: true
+      };
+      // 如果之前提交失败过,清除结果允许重试
+      if (res.myClaim.status === 'auto_rejected') {
+        submitResult.value = null;
+      }
+    }
   } catch (err) {
     loadError.value = err?.error || '加载失败,请稍后再试';
   } finally {
     loading.value = false;
   }
+}
+
+function getLocalTip(taskType) {
+  const tips = {
+    like: '去汽水音乐给这首歌点个 ❤️',
+    listen: '去汽水音乐播放这首歌',
+    comment: '去汽水音乐给这首歌写条评论',
+    share: '去汽水音乐分享这首歌'
+  };
+  return tips[taskType] || '去汽水音乐完成任务';
 }
 
 async function copyLink() {
@@ -439,6 +473,12 @@ async function onClaim() {
   }
 }
 
+function onRetry() {
+  submitResult.value = null;
+  screenshotFile.value = null;
+  screenshotPreview.value = null;
+}
+
 function triggerUpload() {
   fileInputRef.value?.click();
 }
@@ -469,7 +509,6 @@ async function onSubmit() {
   }
   submitting.value = true;
   try {
-    // 用 FormData 上传截图(不能用 axios 的 api.post,需要 multipart)
     const formData = new FormData();
     formData.append('screenshot', screenshotFile.value);
 
@@ -480,13 +519,23 @@ async function onSubmit() {
       body: formData
     });
     const res = await resp.json();
-    submitResult.value = res;
+
     if (res.ok) {
+      // 验证通过:显示结果
+      submitResult.value = res;
       showToast({ message: '验证通过！', type: 'success' });
       await userStore.refreshMe();
+    } else if (res.error?.includes('截图')) {
+      // 截图处理失败:允许重试,不锁定结果
+      showFailToast(res.error + '，请重新上传');
+      screenshotFile.value = null;
+      screenshotPreview.value = null;
+    } else {
+      // 验证未通过(互动数不足):显示结果
+      submitResult.value = res;
     }
   } catch (err) {
-    submitResult.value = { ok: false, error: err?.message || '验证失败,请稍后再试' };
+    showFailToast(err?.message || '提交失败，请重试');
   } finally {
     submitting.value = false;
   }
@@ -832,6 +881,9 @@ onMounted(() => {
   margin: 0;
   font-size: 13px;
   color: var(--color-text-regular);
+}
+.retry-btn {
+  margin-top: 12px;
 }
 /* 截图上传 */
 .upload-section {
