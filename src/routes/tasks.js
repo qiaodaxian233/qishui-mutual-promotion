@@ -117,7 +117,10 @@ router.get('/', optionalAuth, async (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
   const offset = Math.max(parseInt(req.query.offset || '0', 10), 0);
 
-  const tasks = await tasksService.listTasks({ taskType, limit, offset });
+  const tasks = await tasksService.listTasks({
+    taskType, limit, offset,
+    userId: req.user?.id || null
+  });
   res.json({ ok: true, tasks, limit, offset });
 });
 

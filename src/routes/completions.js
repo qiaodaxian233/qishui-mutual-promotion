@@ -81,12 +81,30 @@ router.post('/:id/submit', requireAuth, strictLimiter, upload.single('screenshot
 
   // AI 分析截图(如果配置了 CLAUDE_API_KEY)
   const { analyzeScreenshot } = require('../services/screenshot-ai');
+  const { verifyScreenshot } = require('../services/local-verify');
   const pool2 = require('../config/db');
   const [[compInfo]] = await pool2.query(
-    `SELECT t.task_type FROM task_completions c JOIN tasks t ON t.id = c.task_id WHERE c.id = ?`, [id]
+    `SELECT t.task_type, s.song_name FROM task_completions c
+     JOIN tasks t ON t.id = c.task_id
+     JOIN songs s ON s.id = t.song_id
+     WHERE c.id = ?`, [id]
   );
   const taskType = compInfo?.task_type || 'like';
+  const songName = compInfo?.song_name || '';
 
+  // 本地 OCR + 像素分析(不需要 API Key)
+  const localResult = await verifyScreenshot(screenshotInfo.relativePath, { songName, taskType });
+  console.log(`[submit] 本地验证: passed=${localResult.passed}, reason=${localResult.reason}`);
+
+  if (localResult.ok && localResult.passed === false) {
+    return res.status(400).json({
+      ok: false,
+      error: `截图验证未通过: ${localResult.reason}`,
+      localRejected: true
+    });
+  }
+
+  // Claude API 分析(如果有 Key)
   const aiResult = await analyzeScreenshot(screenshotInfo.relativePath, taskType);
 
   if (aiResult.ok && aiResult.passed === false) {
