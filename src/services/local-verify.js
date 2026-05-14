@@ -188,10 +188,10 @@ async function detectProgress(imagePath) {
     const w = meta.width;
     const h = meta.height;
 
-    const cropTop = Math.floor(h * 0.85);
-    const cropBottom = Math.floor(h * 0.93);
+    const cropTop = Math.floor(h * 0.87);
+    const cropBottom = Math.floor(h * 0.91);
     const cropHeight = cropBottom - cropTop;
-    if (cropHeight <= 0) return null;
+    if (cropHeight <= 2) return null;
 
     const { data, info } = await img
       .extract({ left: 0, top: cropTop, width: w, height: cropHeight })
@@ -218,13 +218,13 @@ async function detectProgress(imagePath) {
           if (streak === 0) clusterStart = x;
           streak++;
         } else {
-          if (streak >= 3 && streak < 40) { // 3-40px 宽的簇(圆点大小)
+          if (streak >= 3 && streak < 25) { // 3-25px(圆点大小,排除大按钮)
             clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
           }
           streak = 0;
         }
       }
-      if (streak >= 3 && streak < 40) {
+      if (streak >= 3 && streak < 25) {
         clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
       }
 
