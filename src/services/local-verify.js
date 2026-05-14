@@ -12,10 +12,14 @@ const fs = require('fs');
 
 // 缓存 worker 避免重复初始化
 let worker = null;
+const TESSDATA_PATH = path.join(__dirname, '../../tessdata');
 
 async function getWorker() {
   if (!worker) {
-    worker = await Tesseract.createWorker('chi_sim+eng');
+    worker = await Tesseract.createWorker('chi_sim+eng', 1, {
+      langPath: TESSDATA_PATH,
+      gzip: false
+    });
   }
   return worker;
 }
