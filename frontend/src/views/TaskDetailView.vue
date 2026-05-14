@@ -170,8 +170,7 @@
             请在汽水音乐完成操作后,截图上传作为凭证
           </p>
 
-          <!-- 预览 / 上传按钮 -->
-          <div class="upload-area" @click="triggerUpload">
+          <label class="upload-area" for="screenshot-input">
             <template v-if="screenshotPreview">
               <img :src="screenshotPreview" class="preview-img" alt="截图预览" />
               <span class="change-btn">更换截图</span>
@@ -181,11 +180,11 @@
               <span class="upload-text">点击上传截图</span>
               <span class="upload-formats">支持 JPG/PNG/WebP/HEIC · 10MB 以内</span>
             </template>
-          </div>
+          </label>
           <input
-            ref="fileInputRef"
+            id="screenshot-input"
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            accept="image/*"
             style="display:none"
             @change="onFileSelect"
           />
