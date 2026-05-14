@@ -199,20 +199,25 @@
               <span class="upload-text">点击上传截图</span>
               <span class="upload-formats">支持 JPG/PNG/WebP/HEIC · 10MB 以内</span>
             </template>
+            <input
+              id="screenshot-input"
+              type="file"
+              accept="image/*"
+              class="hidden-input"
+              @change="onFileSelect"
+            />
           </label>
-          <input
-            id="screenshot-input"
-            type="file"
-            accept="image/*"
-            style="display:none"
-            @change="onFileSelect"
-          />
         </div>
       </section>
 
       <!-- 提交结果 -->
       <section v-if="submitResult" class="submit-result-card">
-        <div v-if="submitResult.ok" class="result-ok">
+        <div v-if="submitResult.ok && submitResult.status === 'auto_passed'" class="result-reviewing">
+          <span class="result-emoji">⏳</span>
+          <h3>系统正在审核</h3>
+          <p>截图已提交，验证通过！积分将在 24 小时回查后发放</p>
+        </div>
+        <div v-else-if="submitResult.ok" class="result-ok">
           <span class="result-emoji">🎉</span>
           <h3>验证通过</h3>
           <p>{{ submitResult.message }}</p>
@@ -433,7 +438,7 @@ async function loadTask() {
           restored: true
         };
       } else if (res.myClaim.status === 'auto_passed') {
-        submitResult.value = { ok: true, message: '验证已通过,积分将在回查后发放' };
+        submitResult.value = { ok: true, status: 'auto_passed', message: '验证已通过,积分将在回查后发放' };
       } else if (res.myClaim.status === 'auto_rejected') {
         submitResult.value = { ok: false, error: '验证未通过,本次任务已结束', noRetry: true };
       } else if (res.myClaim.status === 'manual_passed') {
@@ -928,6 +933,15 @@ onMounted(() => {
   margin: 0 0 8px;
   color: var(--color-primary-dark);
 }
+.result-reviewing h3 {
+  margin: 0 0 8px;
+  color: var(--color-warning, #FF9500);
+}
+.result-reviewing p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-regular);
+}
 .result-ok p {
   margin: 0;
   font-size: 13px;
@@ -994,6 +1008,13 @@ onMounted(() => {
   margin-top: 16px;
   padding-top: 14px;
   border-top: 1px solid var(--divider);
+}
+.hidden-input {
+  position: absolute;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  overflow: hidden;
 }
 .upload-title {
   margin: 0 0 4px;
