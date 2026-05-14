@@ -67,6 +67,18 @@ router.post('/:id/submit', requireAuth, strictLimiter, upload.single('screenshot
     return res.status(400).json({ ok: false, error: '截图处理失败,请换一张图片重试' });
   }
 
+  // 检查截图是否被用过(同一 hash 不能重复提交)
+  const pool = require('../config/db');
+  const [[existingProof]] = await pool.query(
+    `SELECT p.id, p.completion_id FROM task_proofs p
+     WHERE p.file_sha256 = ? AND p.completion_id != ?
+     LIMIT 1`,
+    [screenshotInfo.hash, id]
+  );
+  if (existingProof) {
+    return res.status(400).json({ ok: false, error: '这张截图已被使用过,请重新截图上传' });
+  }
+
   const result = await completionsService.submitCompletion({
     userId: req.user.id,
     completionId: id,

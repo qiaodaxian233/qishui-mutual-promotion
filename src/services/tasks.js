@@ -139,6 +139,15 @@ async function publishTask({ publisherId, shareText, taskType, reward, quota, mi
   // 5. 算成本
   const cost = calculateCost(reward, quota);
 
+  // 检查同一首歌是否已有活跃任务
+  const [[existingTask]] = await pool.query(
+    `SELECT id FROM tasks WHERE song_id = ? AND status = 'active' LIMIT 1`,
+    [songRow.id]
+  );
+  if (existingTask) {
+    return { ok: false, error: '这首歌已有进行中的任务，任务结束后才能重新发布' };
+  }
+
   // 6. 开事务:扣积分 + 建任务 + 记快照
   const conn = await pool.getConnection();
   try {
