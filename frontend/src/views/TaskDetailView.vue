@@ -197,6 +197,7 @@
           <h3>验证未通过</h3>
           <p>{{ submitResult.error }}</p>
           <van-button
+            v-if="!submitResult.noRetry"
             round
             type="primary"
             size="small"
@@ -384,18 +385,27 @@ async function loadTask() {
     }
     task.value = res.task;
 
-    // 恢复已有的接单状态(页面刷新/返回时不丢)
+    // 恢复已有的接单状态
     if (res.myClaim && !claimResult.value) {
-      claimResult.value = {
-        ok: true,
-        completionId: res.myClaim.completionId,
-        shareLink: res.myClaim.shareLink,
-        tip: getLocalTip(res.task.task_type),
-        restored: true
-      };
-      // 如果之前提交失败过,清除结果允许重试
-      if (res.myClaim.status === 'auto_rejected') {
-        submitResult.value = null;
+      if (res.myClaim.status === 'claimed') {
+        // 进行中:恢复接单状态,可继续上传截图
+        claimResult.value = {
+          ok: true,
+          completionId: res.myClaim.completionId,
+          shareLink: res.myClaim.shareLink,
+          tip: getLocalTip(res.task.task_type),
+          restored: true
+        };
+      } else if (res.myClaim.status === 'auto_passed') {
+        submitResult.value = { ok: true, message: '验证已通过,积分将在回查后发放' };
+      } else if (res.myClaim.status === 'auto_rejected') {
+        submitResult.value = { ok: false, error: '验证未通过,本次任务已结束', noRetry: true };
+      } else if (res.myClaim.status === 'manual_passed') {
+        submitResult.value = { ok: true, message: '已完成,积分已发放' };
+      } else if (res.myClaim.status === 'timeout') {
+        submitResult.value = { ok: false, error: '接单已超时', noRetry: true };
+      } else {
+        submitResult.value = { ok: false, error: `状态: ${res.myClaim.status}`, noRetry: true };
       }
     }
   } catch (err) {

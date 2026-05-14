@@ -148,7 +148,7 @@ router.get('/:id', optionalAuth, async (req, res) => {
     const pool = require('../config/db');
     const [claims] = await pool.query(
       `SELECT id, status, claimed_at FROM task_completions
-       WHERE task_id = ? AND user_id = ? AND status IN ('claimed', 'auto_rejected')
+       WHERE task_id = ? AND user_id = ?
        ORDER BY id DESC LIMIT 1`,
       [taskId, req.user.id]
     );

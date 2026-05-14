@@ -349,7 +349,8 @@ router.get('/completions', requireAuth, requireAdmin, async (req, res) => {
     `SELECT c.id, c.task_id, c.user_id, c.status, c.points_awarded,
             c.claimed_at, c.submitted_at, c.awarded_at,
             s.song_name, u.nickname AS claimer_nickname,
-            t.task_type, t.reward_points
+            t.task_type, t.reward_points,
+            (SELECT file_path FROM task_proofs WHERE completion_id = c.id ORDER BY id DESC LIMIT 1) AS screenshot
      FROM task_completions c
      JOIN tasks t ON t.id = c.task_id
      JOIN songs s ON s.id = t.song_id
@@ -361,6 +362,78 @@ router.get('/completions', requireAuth, requireAdmin, async (req, res) => {
   );
 
   res.json({ ok: true, completions: rows });
+});
+
+/**
+ * POST /api/admin/completions/:id/review  人工审核(通过/拒绝)
+ */
+router.post('/completions/:id/review', requireAuth, requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { action, reason } = req.body; // action: 'approve' | 'reject'
+
+  if (!['approve', 'reject'].includes(action)) {
+    return res.status(400).json({ ok: false, error: '无效操作' });
+  }
+
+  const [[comp]] = await pool.query(
+    `SELECT c.id, c.user_id, c.task_id, c.status, t.reward_points
+     FROM task_completions c JOIN tasks t ON t.id = c.task_id
+     WHERE c.id = ?`, [id]
+  );
+  if (!comp) return res.status(404).json({ ok: false, error: '记录不存在' });
+
+  const pointsService = require('../services/points');
+  const notify = require('../services/notifications');
+
+  if (action === 'approve') {
+    // 人工通过:发放积分
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await pointsService.addInTx(conn, {
+        userId: comp.user_id,
+        amount: comp.reward_points,
+        type: 'task_complete',
+        refType: 'completion',
+        refId: id,
+        note: `人工审核通过`
+      });
+      await conn.query(
+        `UPDATE task_completions SET status = 'manual_passed', points_awarded = ?, awarded_at = NOW() WHERE id = ?`,
+        [comp.reward_points, id]
+      );
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      return res.status(500).json({ ok: false, error: err.message });
+    } finally {
+      conn.release();
+    }
+
+    notify.send({
+      userId: comp.user_id, type: 'points_awarded',
+      title: '审核通过', content: `人工审核通过,${comp.reward_points} 积分已发放`,
+      refType: 'completion', refId: id
+    });
+    res.json({ ok: true, message: '已通过,积分已发放' });
+
+  } else {
+    // 人工拒绝
+    await pool.query(
+      `UPDATE task_completions SET status = 'manual_rejected' WHERE id = ?`, [id]
+    );
+    // 释放名额
+    await pool.query(
+      `UPDATE tasks SET quota_remaining = quota_remaining + 1 WHERE id = ? AND quota_remaining < quota_total`,
+      [comp.task_id]
+    );
+    notify.send({
+      userId: comp.user_id, type: 'verify_failed',
+      title: '审核未通过', content: reason || '人工审核未通过',
+      refType: 'completion', refId: id
+    });
+    res.json({ ok: true, message: '已拒绝,名额已释放' });
+  }
 });
 
 /**

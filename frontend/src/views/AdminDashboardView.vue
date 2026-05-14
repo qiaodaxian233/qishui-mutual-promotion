@@ -164,14 +164,26 @@
         <div v-for="c in compList" :key="c.id" class="mgmt-card">
           <div class="mgmt-top">
             <strong>{{ c.song_name }}</strong>
-            <van-tag round size="medium">{{ c.status }}</van-tag>
+            <van-tag :type="compTagType(c.status)" round size="medium">{{ c.status }}</van-tag>
           </div>
           <div class="mgmt-meta">
             {{ c.task_type }} · @{{ c.claimer_nickname }} · {{ c.claimed_at?.slice(5, 16) }}
             {{ c.points_awarded ? `· 发放 ${c.points_awarded}` : '' }}
           </div>
+          <!-- 截图预览 -->
+          <div v-if="c.screenshot" class="screenshot-wrap" @click="showImagePreview({ images: [c.screenshot] })">
+            <img :src="c.screenshot" class="screenshot-thumb" />
+            <span class="screenshot-hint">点击放大</span>
+          </div>
+          <!-- 审核按钮 -->
+          <div v-if="['auto_passed', 'auto_rejected', 'claimed'].includes(c.status)" class="review-actions">
+            <van-button size="mini" type="primary" @click="onReview(c.id, 'approve')">✅ 通过发积分</van-button>
+            <van-button size="mini" type="danger" @click="onReview(c.id, 'reject')">❌ 拒绝释放名额</van-button>
+          </div>
         </div>
       </div>
+
+      <!-- 截图大图预览用 showImagePreview 函数 -->
     </template>
   </div>
 </template>
@@ -179,7 +191,7 @@
 <script setup>
 defineOptions({ name: 'AdminDashboardView' });
 import { ref, onMounted, watch } from 'vue';
-import { showFailToast, showSuccessToast } from 'vant';
+import { showFailToast, showSuccessToast, showImagePreview } from 'vant';
 import api from '@/api';
 
 const forbidden = ref(false);
@@ -257,6 +269,26 @@ async function setUserRole(id, role) {
     loadUsers();
   } catch (err) { showFailToast(err?.error || '操作失败'); }
 }
+
+function compTagType(status) {
+  const map = {
+    claimed: 'warning', auto_passed: 'primary', auto_rejected: 'danger',
+    manual_passed: 'success', manual_rejected: 'danger', recheck_failed: 'danger', timeout: 'default'
+  };
+  return map[status] || 'default';
+}
+
+async function onReview(id, action) {
+  const reason = action === 'reject' ? '人工审核未通过' : '';
+  try {
+    const res = await api.post(`/admin/completions/${id}/review`, { action, reason });
+    showSuccessToast(res.message || '操作成功');
+    loadCompletions();
+  } catch (err) { showFailToast(err?.error || '操作失败'); }
+}
+
+watch(previewImg, (v) => { if (v) showPreview.value = true; });
+watch(showPreview, (v) => { if (!v) previewImg.value = ''; });
 
 function openPointsDialog(u) {
   pointsDialog.value = { show: true, userId: u.id, nickname: u.nickname, delta: '', note: '' };
@@ -348,4 +380,10 @@ onMounted(() => { loadStats(); });
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filter-chip { padding: 4px 10px; font-size: 12px; border-radius: 14px; border: 1px solid var(--divider); color: var(--color-text-regular); cursor: pointer; }
 .filter-chip.active { background: rgba(26,254,73,.12); border-color: var(--color-primary-dark); color: var(--color-primary-dark); font-weight: 600; }
+
+/* 截图预览 */
+.screenshot-wrap { margin: 8px 0; cursor: pointer; position: relative; }
+.screenshot-thumb { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; border: 1px solid var(--divider); }
+.screenshot-hint { position: absolute; bottom: 6px; right: 6px; background: rgba(0,0,0,.5); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; }
+.review-actions { display: flex; gap: 8px; margin-top: 6px; }
 </style>

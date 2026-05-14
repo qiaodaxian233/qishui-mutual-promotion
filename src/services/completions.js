@@ -75,6 +75,23 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
   const creditCheck = await creditService.canClaim(userId);
   if (!creditCheck.ok) return creditCheck;
 
+  // 同一用户同一任务只能接一次(无论什么状态,必须等任务重新发布)
+  const [[existingClaim]] = await pool.query(
+    `SELECT id, status FROM task_completions WHERE task_id = ? AND user_id = ? LIMIT 1`,
+    [taskId, userId]
+  );
+  if (existingClaim) {
+    const statusMsg = {
+      claimed: '你已接过这个任务,请完成后提交',
+      auto_passed: '你已完成过这个任务',
+      auto_rejected: '你已接过这个任务(验证未通过)',
+      manual_passed: '你已完成过这个任务',
+      recheck_failed: '你已接过这个任务',
+      timeout: '你已接过这个任务(已超时)'
+    };
+    return { ok: false, error: statusMsg[existingClaim.status] || '你已接过这个任务' };
+  }
+
   // 抓最新互动数作为 baseline
   let baseline;
   try {
@@ -201,8 +218,8 @@ async function submitCompletion({ userId, completionId, screenshotPath, screensh
   const c = rows[0];
 
   if (c.user_id !== userId) return { ok: false, error: '不能提交他人的接单' };
-  if (c.status !== 'claimed' && c.status !== 'auto_rejected') {
-    return { ok: false, error: `当前状态(${c.status})不可提交` };
+  if (c.status !== 'claimed') {
+    return { ok: false, error: `当前状态不可提交,每个任务只能提交一次` };
   }
 
   // 防脚本秒过:接单后至少 10 秒才能提交
