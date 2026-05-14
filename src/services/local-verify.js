@@ -178,8 +178,7 @@ async function detectRedHeart(imagePath) {
 
 /**
  * 检测播放进度是否过半
- * 原理:找到进度条上的白色小圆点,它的水平位置就是播放进度
- * 进度条区域在底部 10-18% 处(避开底部控制按钮)
+ * 缩小扫描到 85-93%,用桶聚类找真正的圆点位置
  */
 async function detectProgress(imagePath) {
   try {
@@ -188,9 +187,8 @@ async function detectProgress(imagePath) {
     const w = meta.width;
     const h = meta.height;
 
-    // 扫描范围:底部 20% 到底部 5%(覆盖更大区域)
-    const cropTop = Math.floor(h * 0.80);
-    const cropBottom = Math.floor(h * 0.95);
+    const cropTop = Math.floor(h * 0.85);
+    const cropBottom = Math.floor(h * 0.93);
     const cropHeight = cropBottom - cropTop;
     if (cropHeight <= 0) return null;
 
@@ -203,55 +201,68 @@ async function detectProgress(imagePath) {
     const scanWidth = info.width;
     const scanHeight = info.height;
 
-    // 逐行扫描,找每行中间偏右的亮色像素簇
-    // 进度条圆点是该行中独立的亮色区域
-    let dotPositions = [];
+    // 逐行找亮色簇,但只保留"孤立"簇(进度条圆点所在行几乎只有它一个亮点)
+    let allDots = [];
 
     for (let y = 0; y < scanHeight; y++) {
-      // 从右往左扫,找第一个亮色簇
-      let rightBrightX = -1;
+      let clusters = []; // 这行所有亮色簇
       let streak = 0;
+      let clusterStart = -1;
 
-      for (let x = scanWidth - 20; x >= 20; x--) {
+      for (let x = 0; x < scanWidth; x++) {
         const idx = (y * scanWidth + x) * channels;
-        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-        const brightness = (r + g + b) / 3;
+        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
 
-        if (brightness > 180 && Math.abs(r - g) < 40 && Math.abs(g - b) < 40) {
+        if (brightness > 160) {
+          if (streak === 0) clusterStart = x;
           streak++;
-          if (streak >= 4 && rightBrightX === -1) {
-            rightBrightX = x + streak;
-          }
         } else {
-          // 找到了一个簇然后断了,记录
-          if (rightBrightX > 0) break;
+          if (streak >= 3 && streak < 40) { // 3-40px 宽的簇(圆点大小)
+            clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
+          }
           streak = 0;
         }
       }
+      if (streak >= 3 && streak < 40) {
+        clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
+      }
 
-      if (rightBrightX > 0) {
-        dotPositions.push(rightBrightX);
+      // 进度条那行特征:只有 1-3 个小亮簇(圆点+可能的进度线端点)
+      if (clusters.length >= 1 && clusters.length <= 3) {
+        for (const c of clusters) {
+          allDots.push(c.x);
+        }
       }
     }
 
-    if (dotPositions.length < 2) {
-      console.log(`[local-verify] 进度检测: 未找到足够圆点样本`);
+    if (allDots.length < 3) {
+      console.log(`[local-verify] 进度检测: 样本不足(${allDots.length})`);
       return null;
     }
 
-    // 过滤异常值:只保留出现最多的区域
-    dotPositions.sort((a, b) => a - b);
-    // 取中间 60% 去掉两端噪点
-    const trimStart = Math.floor(dotPositions.length * 0.2);
-    const trimEnd = Math.floor(dotPositions.length * 0.8);
-    const trimmed = dotPositions.slice(trimStart, trimEnd);
+    // 用 20px 桶聚类
+    const buckets = {};
+    for (const x of allDots) {
+      const key = Math.floor(x / 20) * 20;
+      if (!buckets[key]) buckets[key] = [];
+      buckets[key].push(x);
+    }
 
-    if (trimmed.length === 0) return null;
+    // 找最密集的桶
+    let bestArr = null, bestCount = 0;
+    for (const arr of Object.values(buckets)) {
+      if (arr.length > bestCount) {
+        bestCount = arr.length;
+        bestArr = arr;
+      }
+    }
 
-    const avgX = trimmed.reduce((s, x) => s + x, 0) / trimmed.length;
-    const progress = avgX / scanWidth;
+    if (!bestArr) return null;
 
-    console.log(`[local-verify] 进度检测: 平均位置 x=${Math.round(avgX)}/${scanWidth} = ${(progress * 100).toFixed(1)}%, 采样${dotPositions.length}行`);
+    const median = bestArr.sort((a, b) => a - b)[Math.floor(bestArr.length / 2)];
+    const progress = median / scanWidth;
+
+    console.log(`[local-verify] 进度检测: 圆点 x=${median}/${scanWidth} = ${(progress * 100).toFixed(1)}%, 聚类${bestCount}票`);
 
     return progress > 0.45;
   } catch (err) {
