@@ -139,6 +139,25 @@
         </ol>
       </section>
 
+      <!-- 接单记录(仅发布者可见) -->
+      <section v-if="isOwnTask && completions && completions.length > 0" class="completions-card">
+        <h3 class="card-title">接单记录 ({{ completions.length }})</h3>
+        <div v-for="c in completions" :key="c.id" class="comp-item">
+          <div class="comp-header">
+            <span class="comp-user">@{{ c.nickname }}</span>
+            <van-tag :type="compStatusType(c.status)" round size="medium">{{ compStatusLabel(c.status) }}</van-tag>
+          </div>
+          <div class="comp-time">
+            接单 {{ formatDateTime(c.claimed_at) }}
+            <template v-if="c.submitted_at"> · 提交 {{ formatDateTime(c.submitted_at) }}</template>
+          </div>
+          <!-- 截图 -->
+          <div v-if="c.screenshot" class="comp-screenshot">
+            <img :src="c.screenshot" class="comp-img" @click="openPreview(c.screenshot)" />
+          </div>
+        </div>
+      </section>
+
       <!-- 接单后的操作提示 -->
       <section v-if="claimResult && !submitResult" class="claim-card">
         <h3 class="card-title">✅ 已接单,请完成任务</h3>
@@ -331,6 +350,9 @@ const coverError = ref(false);
 const copied = ref(false);
 const todayClaimed = ref(0);
 
+// Publisher's completions list
+const completions = ref([]);
+
 // Claim flow
 const claiming = ref(false);
 const claimResult = ref(null);
@@ -397,6 +419,7 @@ async function loadTask() {
     }
     task.value = res.task;
     todayClaimed.value = res.todayClaimed || 0;
+    if (res.completions) completions.value = res.completions;
 
     // 恢复已有的接单状态
     if (res.myClaim && !claimResult.value) {
@@ -500,6 +523,20 @@ function onRetry() {
   submitResult.value = null;
   screenshotFile.value = null;
   screenshotPreview.value = null;
+}
+
+function compStatusType(status) {
+  const map = { claimed: 'warning', auto_passed: 'primary', auto_rejected: 'danger', manual_passed: 'success', manual_rejected: 'danger', timeout: 'default', recheck_failed: 'danger' };
+  return map[status] || 'default';
+}
+
+function compStatusLabel(status) {
+  const map = { claimed: '待完成', auto_passed: '验证通过', auto_rejected: '验证失败', manual_passed: '已发放', manual_rejected: '已拒绝', timeout: '已超时', recheck_failed: '回查失败' };
+  return map[status] || status;
+}
+
+function openPreview(src) {
+  window.open(src, '_blank');
 }
 
 function triggerUpload() {
@@ -910,6 +947,47 @@ onMounted(() => {
 }
 .text-warn {
   color: var(--color-warning, #FF9500);
+}
+
+/* 接单记录列表(发布者视角) */
+.completions-card {
+  margin: 12px;
+  padding: 16px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.comp-item {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.comp-item:last-child { border-bottom: none; }
+.comp-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+.comp-user {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.comp-time {
+  font-size: 11px;
+  color: var(--color-text-disabled);
+  margin-bottom: 8px;
+}
+.comp-screenshot {
+  margin-top: 6px;
+}
+.comp-img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--divider);
+  cursor: pointer;
 }
 /* 截图上传 */
 .upload-section {

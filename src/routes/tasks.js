@@ -172,7 +172,23 @@ router.get('/:id', optionalAuth, async (req, res) => {
   );
   todayClaimed = tc.cnt;
 
-  res.json({ ok: true, task, myClaim, todayClaimed });
+  // 如果是发布者,返回接单记录+截图
+  let completions = null;
+  if (req.user && task.publisher_id === req.user.id) {
+    const [rows] = await pool.query(
+      `SELECT c.id, c.user_id, c.status, c.claimed_at, c.submitted_at, c.points_awarded,
+              u.nickname,
+              (SELECT file_path FROM task_proofs WHERE completion_id = c.id ORDER BY id DESC LIMIT 1) AS screenshot
+       FROM task_completions c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.task_id = ?
+       ORDER BY c.id DESC`,
+      [taskId]
+    );
+    completions = rows;
+  }
+
+  res.json({ ok: true, task, myClaim, todayClaimed, completions });
 });
 
 /**
