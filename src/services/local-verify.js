@@ -63,29 +63,28 @@ async function verifyScreenshot(imagePath, { songName, taskType }) {
       results.heartRed = await detectRedHeart(fullPath);
     }
 
-    if (taskType === 'listen') {
-      results.progressPast50 = await detectProgress(fullPath);
-    }
+    // 所有任务都检测进度条(防秒赞秒评)
+    results.progressPast50 = await detectProgress(fullPath);
 
     // 综合判断
     let passed = true;
     const reasons = [];
 
-    // 歌名不匹配 → 警告(不直接拒绝,OCR 可能识别不准)
+    // 歌名不匹配 → 警告
     if (results.songMatch === false) {
       reasons.push(`截图中未找到歌名「${songName}」`);
     }
 
-    // 红心未点亮 → 拒绝
+    // 红心未点亮 → 拒绝(点赞任务)
     if (taskType === 'like' && results.heartRed === false) {
       passed = false;
       reasons.push('未检测到已点赞(红心未点亮)');
     }
 
-    // 进度条未过半 → 拒绝
-    if (taskType === 'listen' && results.progressPast50 === false) {
+    // 进度条未过半 → 拒绝(所有任务都查)
+    if (results.progressPast50 === false) {
       passed = false;
-      reasons.push('播放进度未过半');
+      reasons.push('播放进度未过半,请先听完再截图');
     }
 
     return {
