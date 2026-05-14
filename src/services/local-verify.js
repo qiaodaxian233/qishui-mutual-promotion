@@ -126,10 +126,12 @@ async function detectRedHeart(imagePath) {
     const w = meta.width;
     const h = meta.height;
 
-    // 扫描底部 35% 左侧 50% (覆盖各种布局的红心位置)
-    const cropTop = Math.floor(h * 0.65);
-    const cropHeight = h - cropTop;
-    const cropWidth = Math.floor(w * 0.5);
+    // 第一步:精确裁切红心区域
+    // 红心在底部 15-30% 区域,左侧 25% 区域
+    const cropTop = Math.floor(h * 0.70);
+    const cropBottom = Math.floor(h * 0.88);
+    const cropHeight = cropBottom - cropTop;
+    const cropWidth = Math.floor(w * 0.25);
 
     const { data, info } = await img
       .extract({ left: 0, top: cropTop, width: cropWidth, height: cropHeight })
@@ -141,18 +143,27 @@ async function detectRedHeart(imagePath) {
     const channels = info.channels;
 
     for (let i = 0; i < data.length; i += channels) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      // 红色(纯红心)
-      if (r > 170 && g < 110 && b < 110) {
-        redPixels++;
-      }
-      // 粉红/玫红色(不同主题下的点赞色)
-      else if (r > 180 && g < 140 && b < 160 && r > g * 1.3) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+
+      // 判断是否为红/粉色系(比灰色偏红很多)
+      const isReddish = r > 150 && r > g * 1.2 && r > b * 1.2;
+      // 纯红
+      const isRed = r > 160 && g < 120 && b < 120;
+      // 粉红/玫红
+      const isPink = r > 170 && g < 150 && b < 170 && r > g * 1.2;
+      // 暖色调下的红心(G和B被暖光提高)
+      const isWarmRed = r > 180 && r - g > 40 && r - b > 30;
+
+      if (isRed || isPink || isWarmRed || isReddish) {
         redPixels++;
       }
     }
+
+    const ratio = redPixels / totalPixels;
+    console.log(`[local-verify] 红心检测: ${redPixels}/${totalPixels} = ${(ratio * 100).toFixed(2)}% (区域:底部70-88%,左侧25%)`);
+
+    // 红色像素占比 > 0.3% 认为红心已点亮
+    return ratio > 0.003;
 
     const ratio = redPixels / totalPixels;
     console.log(`[local-verify] 红心检测: ${redPixels}/${totalPixels} = ${(ratio * 100).toFixed(2)}%`);
