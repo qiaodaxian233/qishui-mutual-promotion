@@ -164,12 +164,6 @@ async function detectRedHeart(imagePath) {
 
     // 红色像素占比 > 0.3% 认为红心已点亮
     return ratio > 0.003;
-
-    const ratio = redPixels / totalPixels;
-    console.log(`[local-verify] 红心检测: ${redPixels}/${totalPixels} = ${(ratio * 100).toFixed(2)}%`);
-
-    // 红色像素占比 > 0.5% 认为红心已点亮
-    return ratio > 0.005;
   } catch (err) {
     console.warn('[local-verify] 红心检测失败:', err.message);
     return null;
