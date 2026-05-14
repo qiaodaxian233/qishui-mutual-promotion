@@ -79,6 +79,28 @@ router.post('/:id/submit', requireAuth, strictLimiter, upload.single('screenshot
     return res.status(400).json({ ok: false, error: '这张截图已被使用过,请重新截图上传' });
   }
 
+  // AI 分析截图(如果配置了 CLAUDE_API_KEY)
+  const { analyzeScreenshot } = require('../services/screenshot-ai');
+  const pool2 = require('../config/db');
+  const [[compInfo]] = await pool2.query(
+    `SELECT t.task_type FROM task_completions c JOIN tasks t ON t.id = c.task_id WHERE c.id = ?`, [id]
+  );
+  const taskType = compInfo?.task_type || 'like';
+
+  const aiResult = await analyzeScreenshot(screenshotInfo.relativePath, taskType);
+
+  if (aiResult.ok && aiResult.passed === false) {
+    // AI 明确判定不通过
+    return res.status(400).json({
+      ok: false,
+      error: `截图验证未通过: ${aiResult.reason}`,
+      aiRejected: true
+    });
+  }
+
+  // AI 结果存到 task_proofs 备查
+  const aiNote = aiResult.skipped ? '(AI跳过)' : aiResult.passed ? '(AI通过)' : '(AI不确定)';
+
   const result = await completionsService.submitCompletion({
     userId: req.user.id,
     completionId: id,
