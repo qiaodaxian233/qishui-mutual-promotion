@@ -168,8 +168,9 @@ async function detectRedHeart(imagePath) {
     const ratio = redPixels / totalPixels;
     console.log(`[local-verify] 红心检测: ${redPixels}/${totalPixels} = ${(ratio * 100).toFixed(3)}%`);
 
-    // 红色像素占比 > 0.05% 认为红心已点亮(心形图标很小)
-    return ratio > 0.0005;
+    // 红色像素占比 > 0.5% 认为红心已点亮
+    // 真阳: 旧窗影=4.1%  假阳: 紫色背景=0.087%
+    return ratio > 0.005;
   } catch (err) {
     console.warn('[local-verify] 红心检测失败:', err.message);
     return null;
@@ -213,7 +214,7 @@ async function detectProgress(imagePath) {
         const idx = (y * scanWidth + x) * channels;
         const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
 
-        if (brightness > 160) {
+        if (brightness > 210) {  // 只找白色/高亮像素(进度条圆点)
           if (streak === 0) clusterStart = x;
           streak++;
         } else {
