@@ -134,3 +134,17 @@ img { display: block; max-width: 100%; }
 @media (min-width: 768px) {
   .app-root { max-width: 480px; margin: 0 auto; box-shadow: var(--shadow-lg); min-height: 100vh; position: relative; overflow: hidden; }
 }
+
+/* 暗色模式: Toast / Dialog / ActionSheet / Overlay */
+[data-theme="dark"] .van-toast { background: var(--card-bg-elevated) !important; color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-dialog__header { color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-dialog__message { color: var(--color-text-regular) !important; }
+[data-theme="dark"] .van-dialog__confirm { color: var(--color-primary) !important; }
+[data-theme="dark"] .van-dialog__cancel { color: var(--color-text-secondary) !important; }
+[data-theme="dark"] .van-action-sheet { background: var(--card-bg) !important; }
+[data-theme="dark"] .van-action-sheet__item { color: var(--color-text-primary) !important; }
+[data-theme="dark"] .van-popup { background: var(--card-bg-elevated) !important; }
+[data-theme="dark"] .van-image-preview { background: rgba(0,0,0,.95) !important; }
+[data-theme="dark"] .van-field__label { color: var(--color-text-regular) !important; }
+[data-theme="dark"] .van-dialog__content { background: var(--card-bg-elevated) !important; }
+[data-theme="dark"] .van-button--default { background: var(--card-bg) !important; color: var(--color-text-primary) !important; border-color: var(--divider) !important; }

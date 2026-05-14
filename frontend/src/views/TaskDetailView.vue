@@ -142,6 +142,7 @@
       <!-- 接单记录(仅发布者可见) -->
       <section v-if="isOwnTask && completions && completions.length > 0" class="completions-card">
         <h3 class="card-title">接单记录 ({{ completions.length }})</h3>
+        <p class="card-sub">AI 有时看不准，请先查看截图确认后再操作</p>
         <div v-for="c in completions" :key="c.id" class="comp-item">
           <div class="comp-header">
             <span class="comp-user">@{{ c.nickname }}</span>
@@ -154,6 +155,11 @@
           <!-- 截图 -->
           <div v-if="c.screenshot" class="comp-screenshot">
             <img :src="c.screenshot" class="comp-img" @click="openPreview(c.screenshot)" />
+          </div>
+          <!-- 审核按钮(claimed/auto_passed/auto_rejected 状态可操作) -->
+          <div v-if="['claimed','auto_passed','auto_rejected'].includes(c.status)" class="comp-actions">
+            <van-button size="mini" type="primary" @click="onPublisherReview(c.id, 'approve')">✅ 通过发积分</van-button>
+            <van-button size="mini" type="danger" @click="onPublisherReview(c.id, 'reject')">❌ 拒绝释放名额</van-button>
           </div>
         </div>
       </section>
@@ -541,7 +547,6 @@ function compStatusLabel(status) {
 }
 
 function openPreview(src) {
-  // 创建全屏遮罩预览,点击关闭
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;';
   const img = document.createElement('img');
@@ -554,6 +559,20 @@ function openPreview(src) {
   overlay.appendChild(closeBtn);
   overlay.addEventListener('click', () => overlay.remove());
   document.body.appendChild(overlay);
+}
+
+async function onPublisherReview(completionId, action) {
+  try {
+    const res = await api.post(`/completions/${completionId}/review`, { action });
+    if (res.ok) {
+      showToast({ message: res.message, type: 'success' });
+      await loadTask();
+    } else {
+      showFailToast(res.error || '操作失败');
+    }
+  } catch (err) {
+    showFailToast(err?.error || '操作失败');
+  }
 }
 
 function triggerUpload() {
@@ -988,6 +1007,16 @@ onMounted(() => {
   border-bottom: 1px solid var(--divider);
 }
 .comp-item:last-child { border-bottom: none; }
+.card-sub {
+  margin: -8px 0 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.comp-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
 .comp-header {
   display: flex;
   justify-content: space-between;

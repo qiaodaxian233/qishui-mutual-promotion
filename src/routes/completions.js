@@ -130,4 +130,59 @@ router.post('/:id/recheck', requireAuth, async (req, res) => {
 // === 接单接口挂在 tasks 路由组下,而不是这里 ===
 // 在 routes/tasks.js 里加 POST /:id/claim,因为路径语义上属于 tasks
 
+/**
+ * POST /api/completions/:id/review  发布者审核(通过/拒绝)
+ */
+router.post('/:id/review', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { action } = req.body;
+  if (!['approve', 'reject'].includes(action)) {
+    return res.status(400).json({ ok: false, error: '无效操作' });
+  }
+
+  const pool = require('../config/db');
+  const [[comp]] = await pool.query(
+    `SELECT c.id, c.user_id, c.task_id, c.status, t.reward_points, t.publisher_id
+     FROM task_completions c JOIN tasks t ON t.id = c.task_id
+     WHERE c.id = ?`, [id]
+  );
+  if (!comp) return res.status(404).json({ ok: false, error: '记录不存在' });
+
+  // 只有发布者或管理员可以审核
+  if (comp.publisher_id !== req.user.id && req.user.role !== 'admin') {
+    return res.status(403).json({ ok: false, error: '只有任务发布者可以审核' });
+  }
+
+  const pointsService = require('../services/points');
+  const notify = require('../services/notifications');
+
+  if (action === 'approve') {
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await pointsService.addInTx(conn, {
+        userId: comp.user_id, amount: comp.reward_points,
+        type: 'task_complete', refType: 'completion', refId: id,
+        note: '发布者审核通过'
+      });
+      await conn.query(
+        `UPDATE task_completions SET status = 'manual_passed', points_awarded = ?, awarded_at = NOW() WHERE id = ?`,
+        [comp.reward_points, id]
+      );
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      return res.status(500).json({ ok: false, error: err.message });
+    } finally { conn.release(); }
+
+    notify.send({ userId: comp.user_id, type: 'points_awarded', title: '审核通过', content: `${comp.reward_points} 积分已发放`, refType: 'completion', refId: id });
+    res.json({ ok: true, message: '已通过,积分已发放' });
+  } else {
+    await pool.query(`UPDATE task_completions SET status = 'manual_rejected' WHERE id = ?`, [id]);
+    await pool.query(`UPDATE tasks SET quota_remaining = quota_remaining + 1 WHERE id = ? AND quota_remaining < quota_total`, [comp.task_id]);
+    notify.send({ userId: comp.user_id, type: 'verify_failed', title: '审核未通过', content: '发布者审核未通过', refType: 'completion', refId: id });
+    res.json({ ok: true, message: '已拒绝,名额已释放' });
+  }
+});
+
 module.exports = router;
