@@ -75,6 +75,13 @@
             / {{ task.quota_total }}
           </span>
         </div>
+        <div v-if="task.max_daily_claims" class="info-row">
+          <span class="info-label">今日可接</span>
+          <span class="info-value" :class="{ 'text-warn': dailyRemaining <= 0 }">
+            <strong>{{ Math.max(0, dailyRemaining) }}</strong>
+            / {{ task.max_daily_claims }} 单/天
+          </span>
+        </div>
         <div v-if="task.min_listen_sec" class="info-row">
           <span class="info-label">最少听</span>
           <span class="info-value">{{ task.min_listen_sec }} 秒</span>
@@ -323,6 +330,7 @@ const loading = ref(true);
 const loadError = ref('');
 const coverError = ref(false);
 const copied = ref(false);
+const todayClaimed = ref(0);
 
 // Claim flow
 const claiming = ref(false);
@@ -359,6 +367,11 @@ const isOwnTask = computed(() => {
   return task.value.publisher_id === userStore.user.id;
 });
 
+const dailyRemaining = computed(() => {
+  if (!task.value?.max_daily_claims) return 999;
+  return task.value.max_daily_claims - todayClaimed.value;
+});
+
 function formatDuration(sec) {
   if (!sec) return '';
   const m = Math.floor(sec / 60);
@@ -384,6 +397,7 @@ async function loadTask() {
       return;
     }
     task.value = res.task;
+    todayClaimed.value = res.todayClaimed || 0;
 
     // 恢复已有的接单状态
     if (res.myClaim && !claimResult.value) {
@@ -894,6 +908,9 @@ onMounted(() => {
 }
 .retry-btn {
   margin-top: 12px;
+}
+.text-warn {
+  color: var(--color-warning, #FF9500);
 }
 /* 截图上传 */
 .upload-section {

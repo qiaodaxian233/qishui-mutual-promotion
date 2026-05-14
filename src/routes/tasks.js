@@ -72,7 +72,7 @@ router.post('/preview', requireAuth, strictLimiter, async (req, res) => {
  * body: { shareText, taskType, reward, quota, minListenSec?, commentRule? }
  */
 router.post('/', requireAuth, strictLimiter, async (req, res) => {
-  const { shareText, taskType, reward, quota, minListenSec, commentRule } = req.body || {};
+  const { shareText, taskType, reward, quota, minListenSec, commentRule, maxDailyClaims } = req.body || {};
 
   if (typeof shareText !== 'string' || shareText.length === 0) {
     return res.status(400).json({ ok: false, error: '请提供分享文案' });
@@ -97,7 +97,8 @@ router.post('/', requireAuth, strictLimiter, async (req, res) => {
     reward: Number(reward),
     quota: Number(quota),
     minListenSec: minListenSec != null ? Number(minListenSec) : undefined,
-    commentRule
+    commentRule,
+    maxDailyClaims: maxDailyClaims != null ? Number(maxDailyClaims) : 5
   });
 
   if (!result.ok) {
@@ -162,7 +163,15 @@ router.get('/:id', optionalAuth, async (req, res) => {
     }
   }
 
-  res.json({ ok: true, task, myClaim });
+  // 今日已接单数(防风控显示用)
+  let todayClaimed = 0;
+  const [[tc]] = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM task_completions WHERE task_id = ? AND DATE(claimed_at) = CURDATE()`,
+    [taskId]
+  );
+  todayClaimed = tc.cnt;
+
+  res.json({ ok: true, task, myClaim, todayClaimed });
 });
 
 /**

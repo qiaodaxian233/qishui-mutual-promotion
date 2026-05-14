@@ -92,6 +92,21 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
     return { ok: false, error: statusMsg[existingClaim.status] || '你已接过这个任务' };
   }
 
+  // 每日接单限流:防止短时间大量互动触发平台风控
+  const dailyLimit = taskRow.max_daily_claims || 10;
+  const [[todayCount]] = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM task_completions
+     WHERE task_id = ? AND DATE(claimed_at) = CURDATE()`,
+    [taskId]
+  );
+  if (todayCount.cnt >= dailyLimit) {
+    return {
+      ok: false,
+      error: `今日接单已达上限(${dailyLimit}单/天),明天再来吧`,
+      dailyLimitReached: true
+    };
+  }
+
   // 抓最新互动数作为 baseline
   let baseline;
   try {
@@ -566,7 +581,7 @@ async function getCompletionDetail(completionId, userId) {
 async function getTaskBrief(taskId) {
   const [rows] = await pool.query(
     `SELECT id, publisher_id, song_id, task_type, share_link,
-            quota_remaining, expires_at, status
+            quota_remaining, expires_at, status, max_daily_claims
      FROM tasks WHERE id = ? LIMIT 1`,
     [taskId]
   );

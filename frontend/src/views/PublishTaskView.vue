@@ -125,6 +125,21 @@
           />
         </div>
 
+        <!-- 每日限量 -->
+        <div class="form-row">
+          <span class="form-label">每日限量</span>
+          <van-stepper
+            v-model="maxDailyClaims"
+            :min="1"
+            :max="50"
+            integer
+            theme="round"
+          />
+        </div>
+        <p class="form-hint">
+          防风控：每天最多被接 {{ maxDailyClaims }} 单，赞会分散到 {{ Math.ceil(quota / maxDailyClaims) }} 天涨完
+        </p>
+
         <!-- 费用预估 -->
         <div class="cost-card">
           <div class="cost-row">
@@ -197,6 +212,7 @@ const taskType = ref('like');
 const reward = ref(5);
 const quota = ref(10);
 const minListenSec = ref(30);
+const maxDailyClaims = ref(5);
 const publishing = ref(false);
 
 const typeOptions = [
@@ -261,7 +277,8 @@ async function onPublish() {
       shareText: shareText.value.trim(),
       taskType: taskType.value,
       reward: reward.value,
-      quota: quota.value
+      quota: quota.value,
+      maxDailyClaims: maxDailyClaims.value
     };
     if (taskType.value === 'listen') {
       body.minListenSec = minListenSec.value;

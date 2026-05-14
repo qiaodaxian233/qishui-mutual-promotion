@@ -95,7 +95,7 @@ function calculateCost(reward, quota) {
  *   4. 检查 24h 内是否有同歌活跃任务
  *   5. 开事务:扣发布者积分 → 创建任务 → 记互动快照
  */
-async function publishTask({ publisherId, shareText, taskType, reward, quota, minListenSec, commentRule }) {
+async function publishTask({ publisherId, shareText, taskType, reward, quota, minListenSec, commentRule, maxDailyClaims }) {
   // 1. 校验参数
   const errs = validatePublishParams({ taskType, reward, quota, minListenSec });
   if (errs.length > 0) {
@@ -171,9 +171,9 @@ async function publishTask({ publisherId, shareText, taskType, reward, quota, mi
          (publisher_id, song_id, share_link, share_code, share_text_raw,
           task_type, min_listen_sec, comment_rule,
           reward_points, platform_fee, total_cost,
-          quota_total, quota_remaining,
+          quota_total, quota_remaining, max_daily_claims,
           expires_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), 'active')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), 'active')`,
       [
         publisherId,
         songRow.id,
@@ -188,6 +188,7 @@ async function publishTask({ publisherId, shareText, taskType, reward, quota, mi
         cost.total,
         quota,
         quota,
+        Math.min(Math.max(parseInt(maxDailyClaims) || 5, 1), 50),
         TASK_EXPIRE_DAYS
       ]
     );
