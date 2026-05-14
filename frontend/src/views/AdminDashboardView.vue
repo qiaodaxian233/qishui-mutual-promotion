@@ -287,9 +287,6 @@ async function onReview(id, action) {
   } catch (err) { showFailToast(err?.error || '操作失败'); }
 }
 
-watch(previewImg, (v) => { if (v) showPreview.value = true; });
-watch(showPreview, (v) => { if (!v) previewImg.value = ''; });
-
 function openPointsDialog(u) {
   pointsDialog.value = { show: true, userId: u.id, nickname: u.nickname, delta: '', note: '' };
 }
