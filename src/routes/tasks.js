@@ -12,6 +12,7 @@
  */
 const express = require('express');
 const router = express.Router();
+const pool = require('../config/db');
 
 const tasksService = require('../services/tasks');
 const completionsService = require('../services/completions');
@@ -147,7 +148,6 @@ router.get('/:id', optionalAuth, async (req, res) => {
   // 如果用户已登录,查是否有进行中的接单
   let myClaim = null;
   if (req.user) {
-    const pool = require('../config/db');
     const [claims] = await pool.query(
       `SELECT id, status, claimed_at FROM task_completions
        WHERE task_id = ? AND user_id = ?
@@ -254,8 +254,6 @@ router.put('/:id', requireAuth, async (req, res) => {
   if (!Number.isInteger(taskId) || taskId <= 0) {
     return res.status(400).json({ ok: false, error: '任务 ID 不正确' });
   }
-
-  const pool = require('../config/db');
 
   // 验证是发布者
   const [[task]] = await pool.query(
