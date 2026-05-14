@@ -263,8 +263,32 @@ async function submitCompletion({ userId, completionId, screenshotPath, screensh
   const c = rows[0];
 
   if (c.user_id !== userId) return { ok: false, error: '不能提交他人的接单' };
-  if (c.status !== 'claimed') {
-    return { ok: false, error: `当前状态不可提交,每个任务只能提交一次` };
+
+  // 允许 claimed 和 auto_rejected 提交(重试机制)
+  if (c.status !== 'claimed' && c.status !== 'auto_rejected') {
+    return { ok: false, error: '当前状态不可提交' };
+  }
+
+  // 检查重试次数:最多 3 次
+  const MAX_RETRIES = 3;
+  const [[proofCount]] = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM task_proofs WHERE completion_id = ?`,
+    [completionId]
+  );
+  const retryNum = proofCount.cnt + 1;
+  if (retryNum > MAX_RETRIES) {
+    // 3 次都失败了,扣 5 信用分
+    if (c.status !== 'auto_rejected') {
+      await pool.query(`UPDATE task_completions SET status = 'auto_rejected' WHERE id = ?`, [completionId]);
+    }
+    creditService.adjust(userId, -5, '验证 3 次未通过', 'completion', completionId);
+    return {
+      ok: false,
+      error: '已达最大重试次数(3次),信用分 -5。可申请人工审核',
+      noRetry: true,
+      canManualReview: true,
+      retryNum
+    };
   }
 
   // 防脚本秒过:接单后至少 10 秒才能提交
@@ -273,7 +297,7 @@ async function submitCompletion({ userId, completionId, screenshotPath, screensh
   if (elapsed < MIN_SUBMIT_INTERVAL_SECONDS) {
     return {
       ok: false,
-      error: `操作过快,请在汽水音乐完成动作后再提交(再等 ${Math.ceil(MIN_SUBMIT_INTERVAL_SECONDS - elapsed)} 秒)`
+      error: `请先去汽水音乐完成任务,${Math.ceil(MIN_SUBMIT_INTERVAL_SECONDS - elapsed)} 秒后再提交`
     };
   }
 

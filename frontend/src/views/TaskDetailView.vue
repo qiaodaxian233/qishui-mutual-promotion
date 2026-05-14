@@ -232,6 +232,9 @@
           <span class="result-emoji">😥</span>
           <h3>验证未通过</h3>
           <p>{{ submitResult.error }}</p>
+          <p v-if="submitResult.retryNum" class="retry-info">
+            已尝试 {{ submitResult.retryNum }}/3 次
+          </p>
           <van-button
             v-if="!submitResult.noRetry"
             round
@@ -240,7 +243,17 @@
             class="retry-btn"
             @click="onRetry"
           >
-            重新提交
+            重新提交（{{ 3 - (submitResult.retryNum || 1) }} 次机会）
+          </van-button>
+          <van-button
+            v-if="submitResult.canManualReview"
+            round
+            type="warning"
+            size="small"
+            class="retry-btn"
+            @click="requestManualReview"
+          >
+            申请人工审核（最后机会）
           </van-button>
         </div>
       </section>
@@ -451,7 +464,17 @@ async function loadTask() {
       } else if (res.myClaim.status === 'auto_passed') {
         submitResult.value = { ok: true, status: 'auto_passed', message: '验证已通过,积分将在回查后发放' };
       } else if (res.myClaim.status === 'auto_rejected') {
-        submitResult.value = { ok: false, error: '验证未通过,本次任务已结束', noRetry: true };
+        // 检查还有没有重试机会
+        claimResult.value = {
+          ok: true,
+          completionId: res.myClaim.completionId,
+          shareLink: res.myClaim.shareLink,
+          tip: '验证未通过，请重新完成任务后上传截图',
+          restored: true
+        };
+        submitResult.value = null; // 清除旧结果,显示上传区
+      } else if (res.myClaim.status === 'manual_pending') {
+        submitResult.value = { ok: false, error: '已提交人工审核,请等待结果', noRetry: true };
       } else if (res.myClaim.status === 'manual_passed') {
         submitResult.value = { ok: true, message: '已完成,积分已发放' };
       } else if (res.myClaim.status === 'timeout') {
@@ -541,6 +564,20 @@ function onRetry() {
   screenshotPreview.value = null;
 }
 
+async function requestManualReview() {
+  try {
+    const res = await api.post(`/completions/${claimResult.value?.completionId || submitResult.value?.completionId}/request-review`);
+    if (res.ok) {
+      showToast({ message: '已提交人工审核申请', type: 'success' });
+      submitResult.value = { ok: false, error: '已提交人工审核,请等待结果', noRetry: true };
+    } else {
+      showFailToast(res.error || '申请失败');
+    }
+  } catch (err) {
+    showFailToast(err?.error || '申请失败');
+  }
+}
+
 function compStatusType(status) {
   const map = { claimed: 'warning', auto_passed: 'primary', auto_rejected: 'danger', manual_passed: 'success', manual_rejected: 'danger', timeout: 'default', recheck_failed: 'danger' };
   return map[status] || 'default';
@@ -622,18 +659,20 @@ async function onSubmit() {
     const res = await resp.json();
 
     if (res.ok) {
-      // 验证通过:显示结果
       submitResult.value = res;
       showToast({ message: '验证通过！', type: 'success' });
       await userStore.refreshMe();
     } else if (res.error?.includes('截图')) {
-      // 截图处理失败:允许重试,不锁定结果
+      // 截图处理失败:允许重试
       showFailToast(res.error + '，请重新上传');
       screenshotFile.value = null;
       screenshotPreview.value = null;
-    } else {
-      // 验证未通过(互动数不足):显示结果
+    } else if (res.noRetry) {
+      // 3次用完或不可重试
       submitResult.value = res;
+    } else {
+      // 验证未通过,可重试
+      submitResult.value = { ...res, retryNum: res.retryNum || 1 };
     }
   } catch (err) {
     showFailToast(err?.message || '提交失败，请重试');
@@ -1000,6 +1039,11 @@ onMounted(() => {
 }
 .retry-btn {
   margin-top: 12px;
+}
+.retry-info {
+  font-size: 12px;
+  color: var(--color-warning, #FF9500);
+  margin: 4px 0 0;
 }
 .text-warn {
   color: var(--color-warning, #FF9500);

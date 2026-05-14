@@ -92,9 +92,18 @@ router.post('/:id/submit', requireAuth, strictLimiter, upload.single('screenshot
   const taskType = compInfo?.task_type || 'like';
   const songName = compInfo?.song_name || '';
 
-  // 本地 OCR + 像素分析(不需要 API Key)
-  const localResult = await verifyScreenshot(screenshotInfo.relativePath, { songName, taskType });
-  console.log(`[submit] 本地验证: passed=${localResult.passed}, reason=${localResult.reason}`);
+  // 本地 OCR + 像素分析(不需要 API Key,超时5秒自动跳过)
+  let localResult = { ok: true, passed: null, skipped: true, reason: '跳过' };
+  try {
+    const localPromise = verifyScreenshot(screenshotInfo.relativePath, { songName, taskType });
+    const timeoutPromise = new Promise(resolve =>
+      setTimeout(() => resolve({ ok: true, passed: null, skipped: true, reason: '本地分析超时,跳过' }), 5000)
+    );
+    localResult = await Promise.race([localPromise, timeoutPromise]);
+    console.log(`[submit] 本地验证: passed=${localResult.passed}, reason=${localResult.reason}`);
+  } catch (err) {
+    console.warn('[submit] 本地验证异常:', err.message);
+  }
 
   if (localResult.ok && localResult.passed === false) {
     return res.status(400).json({
@@ -147,6 +156,37 @@ router.post('/:id/recheck', requireAuth, async (req, res) => {
 
 // === 接单接口挂在 tasks 路由组下,而不是这里 ===
 // 在 routes/tasks.js 里加 POST /:id/claim,因为路径语义上属于 tasks
+
+/**
+ * POST /api/completions/:id/request-review  用户申请人工审核
+ */
+router.post('/:id/request-review', requireAuth, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const pool = require('../config/db');
+
+  const [[comp]] = await pool.query(
+    `SELECT id, user_id, status FROM task_completions WHERE id = ?`, [id]
+  );
+  if (!comp) return res.status(404).json({ ok: false, error: '记录不存在' });
+  if (comp.user_id !== req.user.id) return res.status(403).json({ ok: false, error: '无权操作' });
+  if (comp.status !== 'auto_rejected') return res.status(400).json({ ok: false, error: '当前状态不可申请人工审核' });
+
+  await pool.query(`UPDATE task_completions SET status = 'manual_pending' WHERE id = ?`, [id]);
+
+  const notify = require('../services/notifications');
+  // 通知管理员
+  const [admins] = await pool.query(`SELECT id FROM users WHERE role = 'admin'`);
+  for (const admin of admins) {
+    notify.send({
+      userId: admin.id, type: 'system',
+      title: '有新的人工审核申请',
+      content: `接单 #${id} 申请人工审核`,
+      refType: 'completion', refId: id
+    });
+  }
+
+  res.json({ ok: true, message: '已提交人工审核申请' });
+});
 
 /**
  * POST /api/completions/:id/review  发布者审核(通过/拒绝)
