@@ -144,26 +144,32 @@ async function detectRedHeart(imagePath) {
 
     for (let i = 0; i < data.length; i += channels) {
       const r = data[i], g = data[i + 1], b = data[i + 2];
+      const brightness = (r + g + b) / 3;
 
-      // 判断是否为红/粉色系(比灰色偏红很多)
-      const isReddish = r > 150 && r > g * 1.2 && r > b * 1.2;
+      // 跳过太暗的像素(背景)
+      if (brightness < 50) continue;
+
       // 纯红
-      const isRed = r > 160 && g < 120 && b < 120;
+      const isRed = r > 150 && g < 120 && b < 120;
       // 粉红/玫红
-      const isPink = r > 170 && g < 150 && b < 170 && r > g * 1.2;
-      // 暖色调下的红心(G和B被暖光提高)
-      const isWarmRed = r > 180 && r - g > 40 && r - b > 30;
+      const isPink = r > 160 && g < 150 && b < 170 && r > g * 1.2;
+      // 暖色调红心
+      const isWarmRed = r > 170 && r - g > 30 && r - b > 20;
+      // 紫色主题下的红心(B值偏高)
+      const isPurpleRed = r > 150 && r > g * 1.3 && b < r && g < r * 0.8;
+      // 通用:R通道明显高于G
+      const isReddish = r > 140 && r - g > 40 && brightness > 60;
 
-      if (isRed || isPink || isWarmRed || isReddish) {
+      if (isRed || isPink || isWarmRed || isPurpleRed || isReddish) {
         redPixels++;
       }
     }
 
     const ratio = redPixels / totalPixels;
-    console.log(`[local-verify] 红心检测: ${redPixels}/${totalPixels} = ${(ratio * 100).toFixed(2)}% (区域:底部70-88%,左侧25%)`);
+    console.log(`[local-verify] 红心检测: ${redPixels}/${totalPixels} = ${(ratio * 100).toFixed(3)}%`);
 
-    // 红色像素占比 > 0.3% 认为红心已点亮
-    return ratio > 0.003;
+    // 红色像素占比 > 0.05% 认为红心已点亮(心形图标很小)
+    return ratio > 0.0005;
   } catch (err) {
     console.warn('[local-verify] 红心检测失败:', err.message);
     return null;
