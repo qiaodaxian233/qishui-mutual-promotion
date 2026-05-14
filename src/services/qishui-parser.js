@@ -26,18 +26,39 @@ const { URL } = require('url');
 // 正则:文案解析
 // ============================================================
 const SHARE_TEXT_PATTERN = /《(.+?)》@汽水音乐\s*(https:\/\/qishui\.douyin\.com\/s\/([A-Za-z0-9]+)\/?)/;
+const URL_ONLY_PATTERN = /(https:\/\/qishui\.douyin\.com\/s\/([A-Za-z0-9]+)\/?)/;
 
 /**
  * 解析分享文案(纯文本,不发网络)
+ * 支持两种格式:
+ *   1. 《歌名》@汽水音乐https://qishui.douyin.com/s/xxx
+ *   2. https://qishui.douyin.com/s/xxx (仅链接,歌名从页面抓取)
  */
 function parseShareText(text) {
   if (typeof text !== 'string' || text.length === 0) return null;
-  const match = text.trim().match(SHARE_TEXT_PATTERN);
-  if (!match) return null;
+  const trimmed = text.trim();
 
-  const songName = match[1].trim();
-  const shareLink = match[2];
-  const shareCode = match[3];
+  // 先尝试完整格式
+  const fullMatch = trimmed.match(SHARE_TEXT_PATTERN);
+  if (fullMatch) {
+    return {
+      songName: fullMatch[1].trim(),
+      shareLink: fullMatch[2],
+      shareCode: fullMatch[3]
+    };
+  }
+
+  // 再尝试仅链接格式
+  const urlMatch = trimmed.match(URL_ONLY_PATTERN);
+  if (urlMatch) {
+    return {
+      songName: null, // 从 HTML 抓取
+      shareLink: urlMatch[1],
+      shareCode: urlMatch[2]
+    };
+  }
+
+  return null;
 
   if (shareCode.length < 6 || shareCode.length > 12) return null;
   if (songName.length === 0 || songName.length > 200) return null;
@@ -392,7 +413,7 @@ async function parseShareLink(text) {
     return {
       ok: false,
       stage: 'parse_text',
-      error: '分享文案格式不正确,请粘贴汽水音乐 App 的完整分享文本'
+      error: '请粘贴汽水音乐分享链接,例如 https://qishui.douyin.com/s/xxx'
     };
   }
 
@@ -428,9 +449,12 @@ async function parseShareLink(text) {
     songIdFallback = true;
   }
 
-  // Step 5: 校验歌名一致性
+  // URL-only 格式:歌名从 HTML 自动获取
+  const songName = meta.songName || parsed.songName || '未知歌曲';
+
+  // Step 5: 校验歌名一致性(仅完整格式才校验)
   let nameWarning = null;
-  if (meta.songName && meta.songName !== parsed.songName) {
+  if (parsed.songName && meta.songName && meta.songName !== parsed.songName) {
     if (!meta.songName.includes(parsed.songName) && !parsed.songName.includes(meta.songName)) {
       nameWarning = `分享文案歌名"${parsed.songName}"与页面歌名"${meta.songName}"不一致`;
     }
@@ -443,7 +467,7 @@ async function parseShareLink(text) {
     meta: {
       ...meta,
       qishuiSongId,
-      songName: meta.songName || parsed.songName,
+      songName: songName,
       songIdSource,
       songIdFallback
     },

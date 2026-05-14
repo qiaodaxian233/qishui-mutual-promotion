@@ -10,7 +10,7 @@
     <section v-if="step === 1" class="step-card">
       <h3 class="card-title">第一步:粘贴汽水分享文案</h3>
       <p class="card-hint">
-        打开汽水音乐 → 选歌 → 分享 → 复制链接,然后粘贴到下方
+        打开汽水音乐 → 选歌 → 分享 → 复制链接，粘贴到下方
       </p>
       <van-field
         v-model="shareText"
@@ -18,7 +18,7 @@
         rows="4"
         maxlength="2000"
         show-word-limit
-        placeholder="粘贴汽水音乐分享文案…"
+        placeholder="粘贴汽水音乐链接，例如:&#10;https://qishui.douyin.com/s/iQd2Btg1"
         :disabled="previewing"
       />
       <van-button

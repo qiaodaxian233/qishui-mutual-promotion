@@ -41,9 +41,9 @@
 
       <!-- 分享文案输入 -->
       <section class="input-card">
-        <h3 class="card-title">粘贴分享文案（每行一首歌）</h3>
+        <h3 class="card-title">粘贴链接（每行一首歌）</h3>
         <p class="card-hint">
-          从汽水音乐复制分享文案，每首歌一行。最多 20 首。
+          从汽水音乐复制分享链接，每行一个。歌名自动抓取。最多 20 首。
         </p>
         <van-field
           v-model="shareTexts"
@@ -51,7 +51,7 @@
           rows="8"
           maxlength="10000"
           show-word-limit
-          placeholder="分享文案1（包含汽水链接）&#10;分享文案2&#10;分享文案3&#10;..."
+          placeholder="https://qishui.douyin.com/s/xxx&#10;https://qishui.douyin.com/s/yyy&#10;https://qishui.douyin.com/s/zzz"
           :disabled="publishing"
         />
         <p class="parse-info">
