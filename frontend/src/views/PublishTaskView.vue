@@ -140,6 +140,22 @@
           防风控：每天最多被接 {{ maxDailyClaims }} 单，赞会分散到 {{ Math.ceil(quota / maxDailyClaims) }} 天涨完
         </p>
 
+        <!-- 接单冷却 -->
+        <div class="form-row">
+          <span class="form-label">接单间隔</span>
+          <van-stepper
+            v-model="cooldownSec"
+            :min="10"
+            :max="300"
+            :step="10"
+            integer
+            theme="round"
+          />
+        </div>
+        <p class="form-hint">
+          每次被接单后隐藏 {{ cooldownSec }} 秒，避免短时间连续被接
+        </p>
+
         <!-- 费用预估 -->
         <div class="cost-card">
           <div class="cost-row">
@@ -213,6 +229,7 @@ const reward = ref(5);
 const quota = ref(10);
 const minListenSec = ref(30);
 const maxDailyClaims = ref(5);
+const cooldownSec = ref(30);
 const publishing = ref(false);
 
 const typeOptions = [
@@ -278,7 +295,8 @@ async function onPublish() {
       taskType: taskType.value,
       reward: reward.value,
       quota: quota.value,
-      maxDailyClaims: maxDailyClaims.value
+      maxDailyClaims: maxDailyClaims.value,
+      claimCooldownSec: cooldownSec.value
     };
     if (taskType.value === 'listen') {
       body.minListenSec = minListenSec.value;

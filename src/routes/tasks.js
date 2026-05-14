@@ -72,7 +72,7 @@ router.post('/preview', requireAuth, strictLimiter, async (req, res) => {
  * body: { shareText, taskType, reward, quota, minListenSec?, commentRule? }
  */
 router.post('/', requireAuth, strictLimiter, async (req, res) => {
-  const { shareText, taskType, reward, quota, minListenSec, commentRule, maxDailyClaims } = req.body || {};
+  const { shareText, taskType, reward, quota, minListenSec, commentRule, maxDailyClaims, claimCooldownSec } = req.body || {};
 
   if (typeof shareText !== 'string' || shareText.length === 0) {
     return res.status(400).json({ ok: false, error: '请提供分享文案' });
@@ -98,7 +98,8 @@ router.post('/', requireAuth, strictLimiter, async (req, res) => {
     quota: Number(quota),
     minListenSec: minListenSec != null ? Number(minListenSec) : undefined,
     commentRule,
-    maxDailyClaims: maxDailyClaims != null ? Number(maxDailyClaims) : 5
+    maxDailyClaims: maxDailyClaims != null ? Number(maxDailyClaims) : 5,
+    claimCooldownSec: claimCooldownSec != null ? Number(claimCooldownSec) : 30
   });
 
   if (!result.ok) {

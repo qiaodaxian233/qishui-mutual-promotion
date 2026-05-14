@@ -107,6 +107,23 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
     };
   }
 
+  // 接单冷却:两次接单之间必须间隔 N 秒
+  const cooldown = taskRow.claim_cooldown_sec || 30;
+  const [[lastClaim]] = await pool.query(
+    `SELECT claimed_at FROM task_completions WHERE task_id = ? ORDER BY id DESC LIMIT 1`,
+    [taskId]
+  );
+  if (lastClaim) {
+    const elapsed = (Date.now() - new Date(lastClaim.claimed_at).getTime()) / 1000;
+    if (elapsed < cooldown) {
+      return {
+        ok: false,
+        error: `任务冷却中,请 ${Math.ceil(cooldown - elapsed)} 秒后再试`,
+        cooldown: true
+      };
+    }
+  }
+
   // 抓最新互动数作为 baseline
   let baseline;
   try {
@@ -171,6 +188,12 @@ async function claimTask({ userId, taskId, ipHash, deviceFp, userAgent }) {
         baseline.shares ?? null,
         baseline.plays ?? null
       ]
+    );
+
+    // 更新任务最后接单时间(触发冷却)
+    await conn.query(
+      `UPDATE tasks SET last_claimed_at = NOW() WHERE id = ?`,
+      [taskId]
     );
 
     await conn.commit();
@@ -581,7 +604,7 @@ async function getCompletionDetail(completionId, userId) {
 async function getTaskBrief(taskId) {
   const [rows] = await pool.query(
     `SELECT id, publisher_id, song_id, task_type, share_link,
-            quota_remaining, expires_at, status, max_daily_claims
+            quota_remaining, expires_at, status, max_daily_claims, claim_cooldown_sec
      FROM tasks WHERE id = ? LIMIT 1`,
     [taskId]
   );

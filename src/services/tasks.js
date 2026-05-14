@@ -95,7 +95,7 @@ function calculateCost(reward, quota) {
  *   4. 检查 24h 内是否有同歌活跃任务
  *   5. 开事务:扣发布者积分 → 创建任务 → 记互动快照
  */
-async function publishTask({ publisherId, shareText, taskType, reward, quota, minListenSec, commentRule, maxDailyClaims }) {
+async function publishTask({ publisherId, shareText, taskType, reward, quota, minListenSec, commentRule, maxDailyClaims, claimCooldownSec }) {
   // 1. 校验参数
   const errs = validatePublishParams({ taskType, reward, quota, minListenSec });
   if (errs.length > 0) {
@@ -171,9 +171,9 @@ async function publishTask({ publisherId, shareText, taskType, reward, quota, mi
          (publisher_id, song_id, share_link, share_code, share_text_raw,
           task_type, min_listen_sec, comment_rule,
           reward_points, platform_fee, total_cost,
-          quota_total, quota_remaining, max_daily_claims,
+          quota_total, quota_remaining, max_daily_claims, claim_cooldown_sec,
           expires_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), 'active')`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? DAY), 'active')`,
       [
         publisherId,
         songRow.id,
@@ -189,6 +189,7 @@ async function publishTask({ publisherId, shareText, taskType, reward, quota, mi
         quota,
         quota,
         Math.min(Math.max(parseInt(maxDailyClaims) || 5, 1), 50),
+        Math.min(Math.max(parseInt(claimCooldownSec) || 30, 10), 300),
         TASK_EXPIRE_DAYS
       ]
     );
@@ -263,6 +264,8 @@ async function listTasks({ taskType, status = 'active', limit = 20, offset = 0 }
   conditions.push(`t.expires_at > NOW()`);
   // 链接没失效
   conditions.push(`t.link_check_failed = 0`);
+  // 冷却中的任务暂时隐藏(上一次被接单后 N 秒内不显示)
+  conditions.push(`(t.last_claimed_at IS NULL OR NOW() > DATE_ADD(t.last_claimed_at, INTERVAL COALESCE(t.claim_cooldown_sec, 30) SECOND))`);
 
   params.push(limit, offset);
 
