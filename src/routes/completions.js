@@ -105,29 +105,63 @@ router.post('/:id/submit', requireAuth, strictLimiter, upload.single('screenshot
     console.warn('[submit] 本地验证异常:', err.message);
   }
 
-  if (localResult.ok && localResult.passed === false) {
-    return res.status(400).json({
-      ok: false,
-      error: `截图验证未通过: ${localResult.reason}`,
-      localRejected: true
-    });
-  }
-
   // Claude API 分析(如果有 Key)
   const aiResult = await analyzeScreenshot(screenshotInfo.relativePath, taskType);
 
-  if (aiResult.ok && aiResult.passed === false) {
-    // AI 明确判定不通过
+  // 截图验证失败(本地或AI) → 走重试逻辑
+  const verifyFailed = (localResult.ok && localResult.passed === false) ||
+                       (aiResult.ok && aiResult.passed === false);
+  const failReason = (localResult.passed === false ? localResult.reason : '') ||
+                     (aiResult.passed === false ? aiResult.reason : '');
+
+  if (verifyFailed) {
+    // 统计已尝试次数(已存的 proof 数量)
+    const MAX_RETRIES = 3;
+    const [[proofCount]] = await pool.query(
+      `SELECT COUNT(*) AS cnt FROM task_proofs WHERE completion_id = ?`, [id]
+    );
+
+    // 保存本次失败的截图(计入尝试次数)
+    try {
+      await pool.query(
+        `INSERT INTO task_proofs (completion_id, file_path, file_sha256, file_size_kb, mime_type)
+         VALUES (?, ?, ?, 0, 'image/webp')`,
+        [id, screenshotInfo.relativePath, screenshotInfo.hash || '']
+      );
+    } catch (proofErr) {
+      console.error('[submit] 截图存证失败:', proofErr.message);
+    }
+
+    const retryNum = proofCount.cnt + 1;
+
+    if (retryNum >= MAX_RETRIES) {
+      // 3 次用完 → 设为 auto_rejected,允许申请人工审核
+      await pool.query(
+        `UPDATE task_completions SET status = 'auto_rejected', submitted_at = NOW() WHERE id = ? AND status IN ('claimed','auto_rejected')`,
+        [id]
+      );
+      console.log(`[submit] 验证失败 ${retryNum}/${MAX_RETRIES} 次,进入人工审核 completion#${id}`);
+      return res.status(400).json({
+        ok: false,
+        error: `截图验证未通过: ${failReason}`,
+        retryNum,
+        noRetry: true,
+        canManualReview: true,
+        completionId: id
+      });
+    }
+
+    // 还有重试机会
+    console.log(`[submit] 验证失败 ${retryNum}/${MAX_RETRIES} 次 completion#${id}: ${failReason}`);
     return res.status(400).json({
       ok: false,
-      error: `截图验证未通过: ${aiResult.reason}`,
-      aiRejected: true
+      error: `截图验证未通过: ${failReason}`,
+      retryNum,
+      completionId: id
     });
   }
 
-  // AI 结果存到 task_proofs 备查
-  const aiNote = aiResult.skipped ? '(AI跳过)' : aiResult.passed ? '(AI通过)' : '(AI不确定)';
-
+  // 验证通过(或跳过) → 继续走互动增量验证
   const result = await completionsService.submitCompletion({
     userId: req.user.id,
     completionId: id,
