@@ -102,12 +102,41 @@ async function verifyScreenshot(imagePath, { songName, taskType }) {
 
 /**
  * OCR 提取文字
+ * 预处理:裁底部文字区(55%-85%) + 放大2倍 + 灰度 + 拉伸对比度 + 锐化
+ * 汽水音乐主题色多变(蓝/紫/粉),低对比度场景下原图直识别效果差
  */
 async function extractText(imagePath) {
   try {
+    const img = sharp(imagePath);
+    const meta = await img.metadata();
+
+    // 1. 裁出底部文字区(歌名/作者/标签都在这一带)
+    // 2. 放大 2 倍提升小字识别率
+    // 3. 灰度 + normalise 把蓝底白字这种低对比度场景拉开
+    // 4. 锐化让字边缘更清晰
+    const buf = await img
+      .extract({
+        left: 0,
+        top: Math.floor(meta.height * 0.55),
+        width: meta.width,
+        height: Math.floor(meta.height * 0.30)
+      })
+      .resize({ width: meta.width * 2 })
+      .greyscale()
+      .normalise()
+      .sharpen({ sigma: 1.5 })
+      .png()
+      .toBuffer();
+
     const w = await getWorker();
-    const { data: { text } } = await w.recognize(imagePath);
-    return text || '';
+    const { data: { text: textPre } } = await w.recognize(buf);
+
+    // 兜底:如果预处理识别为空,再用原图试一次(防止偶尔裁错位置)
+    if (!textPre || textPre.trim().length < 4) {
+      const { data: { text: textRaw } } = await w.recognize(imagePath);
+      return textRaw || '';
+    }
+    return textPre;
   } catch (err) {
     console.warn('[local-verify] OCR 失败:', err.message);
     return '';
