@@ -219,9 +219,10 @@ async function detectProgress(imagePath) {
     const w = meta.width;
     const h = meta.height;
 
-    // 注意:扫描区刚好在播放按钮上方,不要扩大,否则中央播放按钮会干扰
-    const cropTop = Math.floor(h * 0.87);
-    const cropBottom = Math.floor(h * 0.91);
+    // 扫描区 86%-93%:覆盖不同手机比例下进度条位置的浮动
+    // 这个区间会包含图标行和播放按钮边缘,靠 y 跨度过滤掉
+    const cropTop = Math.floor(h * 0.86);
+    const cropBottom = Math.floor(h * 0.93);
     const cropHeight = cropBottom - cropTop;
     if (cropHeight <= 2) return null;
 
@@ -244,6 +245,7 @@ async function detectProgress(imagePath) {
       return false;
     };
 
+    // 带 y 坐标的亮点收集
     let allDots = [];
 
     for (let y = 0; y < scanHeight; y++) {
@@ -267,10 +269,10 @@ async function detectProgress(imagePath) {
         clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
       }
 
-      // 进度条行特征:只有 1-3 个小亮簇
+      // 进度条行特征:只有 1-3 个小亮簇(太多说明是文字/复杂UI)
       if (clusters.length >= 1 && clusters.length <= 3) {
         for (const c of clusters) {
-          allDots.push(c.x);
+          allDots.push({ x: c.x, y });
         }
       }
     }
@@ -280,7 +282,109 @@ async function detectProgress(imagePath) {
       return null;
     }
 
-    // 用 20px 桶聚类
+    // 用 20px 桶按 x 聚类,同时记录每个桶的 y 范围
+    const buckets = {};
+    for (const dot of allDots) {
+      const key = Math.floor(dot.x / 20) * 20;
+      if (!buckets[key]) buckets[key] = { xs: [], yMin: dot.y, yMax: dot.y };
+      buckets[key].xs.push(dot.x);
+      if (dot.y < buckets[key].yMin) buckets[key].yMin = dot.y;
+      if (dot.y > buckets[key].yMax) buckets[key].yMax = dot.y;
+    }
+
+    // 过滤:只保留 y 跨度 4-30px 的桶(进度条圆点是小圆形)
+    // 图标行/播放按钮/文字的 y 跨度 >30px
+    // 单行噪声 y 跨度 <4px
+    let bestBucket = null, bestCount = 0;
+    for (const b of Object.values(buckets)) {
+      const ySpan = b.yMax - b.yMin;
+      if (ySpan < 4 || ySpan > 30) continue;
+      if (b.xs.length > bestCount) {
+        bestCount = b.xs.length;
+        bestBucket = b;
+      }
+    }
+
+    // 如果 y 跨度过滤全部淘汰,回退到窄区间 88-91% 再试一次
+    if (!bestBucket) {
+      console.log('[local-verify] 进度检测: y跨度过滤无结果,尝试窄区间');
+      return detectProgressNarrow(imagePath);
+    }
+
+    const sorted = bestBucket.xs.sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const progress = median / scanWidth;
+    const ySpan = bestBucket.yMax - bestBucket.yMin;
+
+    console.log(`[local-verify] 进度检测: 圆点 x=${median}/${scanWidth} = ${(progress * 100).toFixed(1)}%, 聚类${bestCount}票, y跨度${ySpan}px`);
+
+    return progress > 0.45;
+  } catch (err) {
+    console.warn('[local-verify] 进度检测失败:', err.message);
+    return null;
+  }
+}
+
+/**
+ * 窄区间进度检测(兜底)
+ * 当宽区间 y 跨度过滤失败时使用,扫描 88-91%
+ */
+async function detectProgressNarrow(imagePath) {
+  try {
+    const img = sharp(imagePath);
+    const meta = await img.metadata();
+    const w = meta.width;
+    const h = meta.height;
+
+    const cropTop = Math.floor(h * 0.88);
+    const cropBottom = Math.floor(h * 0.91);
+    const cropHeight = cropBottom - cropTop;
+    if (cropHeight <= 2) return null;
+
+    const { data, info } = await img
+      .extract({ left: 0, top: cropTop, width: w, height: cropHeight })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+
+    const channels = info.channels;
+    const scanWidth = info.width;
+    const scanHeight = info.height;
+
+    const isBright = (idx) => {
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+      const brightness = (r + g + b) / 3;
+      if (brightness >= 210) return true;
+      if (brightness >= 180 && Math.max(r, g, b) - Math.min(r, g, b) < 25) return true;
+      return false;
+    };
+
+    let allDots = [];
+    for (let y = 0; y < scanHeight; y++) {
+      let clusters = [];
+      let streak = 0;
+      let clusterStart = -1;
+      for (let x = 0; x < scanWidth; x++) {
+        const idx = (y * scanWidth + x) * channels;
+        if (isBright(idx)) {
+          if (streak === 0) clusterStart = x;
+          streak++;
+        } else {
+          if (streak >= 3 && streak < 25) {
+            clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
+          }
+          streak = 0;
+        }
+      }
+      if (streak >= 3 && streak < 25) {
+        clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
+      }
+      if (clusters.length >= 1 && clusters.length <= 3) {
+        for (const c of clusters) allDots.push(c.x);
+      }
+    }
+
+    if (allDots.length < 2) return null;
+
     const buckets = {};
     for (const x of allDots) {
       const key = Math.floor(x / 20) * 20;
@@ -288,24 +392,18 @@ async function detectProgress(imagePath) {
       buckets[key].push(x);
     }
 
-    // 找最密集的桶
     let bestArr = null, bestCount = 0;
     for (const arr of Object.values(buckets)) {
-      if (arr.length > bestCount) {
-        bestCount = arr.length;
-        bestArr = arr;
-      }
+      if (arr.length > bestCount) { bestCount = arr.length; bestArr = arr; }
     }
     if (!bestArr) return null;
 
     const median = bestArr.sort((a, b) => a - b)[Math.floor(bestArr.length / 2)];
     const progress = median / scanWidth;
-
-    console.log(`[local-verify] 进度检测: 圆点 x=${median}/${scanWidth} = ${(progress * 100).toFixed(1)}%, 聚类${bestCount}票`);
-
+    console.log(`[local-verify] 进度检测(窄): 圆点 x=${median}/${scanWidth} = ${(progress * 100).toFixed(1)}%, ${bestCount}票`);
     return progress > 0.45;
   } catch (err) {
-    console.warn('[local-verify] 进度检测失败:', err.message);
+    console.warn('[local-verify] 进度检测(窄)失败:', err.message);
     return null;
   }
 }
