@@ -411,3 +411,13 @@ function fuzzyMatch(text, target) {
 }
 
 module.exports = { verifyScreenshot };
+
+// 预热 OCR worker(服务启动时调用,避免首次验证冷启动慢)
+setTimeout(async () => {
+  try {
+    await getWorker();
+    console.log('[local-verify] OCR worker 预热完成');
+  } catch (err) {
+    console.warn('[local-verify] OCR worker 预热失败:', err.message);
+  }
+}, 3000);

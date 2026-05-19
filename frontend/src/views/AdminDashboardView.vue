@@ -46,7 +46,8 @@
         <van-tab name="stats" title="数据统计" />
         <van-tab name="users" title="用户" />
         <van-tab name="tasks" title="任务" />
-        <van-tab name="completions" title="接单" />
+        <van-tab name="completions" :title="pendingReviewCount ? `接单(${pendingReviewCount}待审)` : '接单'" />
+        <van-tab name="collect" title="截图收集" />
       </van-tabs>
 
       <!-- 数据统计 -->
@@ -156,9 +157,9 @@
       <!-- 接单管理 -->
       <div v-if="activeTab === 'completions'" class="tab-body">
         <div class="filter-row">
-          <span v-for="s in ['', 'claimed', 'auto_passed', 'auto_rejected', 'manual_passed', 'recheck_failed', 'timeout']" :key="s"
-            class="filter-chip" :class="{ active: compFilter === s }" @click="compFilter = s; loadCompletions()">
-            {{ s || '全部' }}
+          <span v-for="s in ['', 'manual_pending', 'claimed', 'auto_passed', 'auto_rejected', 'manual_passed', 'manual_rejected', 'recheck_failed', 'timeout']" :key="s"
+            class="filter-chip" :class="{ active: compFilter === s, urgent: s === 'manual_pending' && pendingReviewCount }" @click="compFilter = s; loadCompletions()">
+            {{ { '': '全部', manual_pending: `待审核(${pendingReviewCount})`, manual_rejected: '已拒绝' }[s] || s }}
           </span>
         </div>
         <div v-for="c in compList" :key="c.id" class="mgmt-card">
@@ -175,11 +176,39 @@
             <img :src="c.screenshot" class="screenshot-thumb" />
           </div>
           <!-- 审核按钮 -->
-          <div v-if="['auto_passed', 'auto_rejected', 'claimed'].includes(c.status)" class="review-actions">
+          <div v-if="['auto_passed', 'auto_rejected', 'claimed', 'manual_pending'].includes(c.status)" class="review-actions">
             <van-button size="mini" type="primary" @click="onReview(c.id, 'approve')">✅ 通过发积分</van-button>
             <van-button size="mini" type="danger" @click="onReview(c.id, 'reject')">❌ 拒绝释放名额</van-button>
           </div>
         </div>
+      </div>
+
+      <!-- 截图收集 -->
+      <div v-if="activeTab === 'collect'" class="tab-body">
+        <div v-if="collectStats" class="stats-grid">
+          <div class="stat-card"><div class="stat-num">{{ collectStats.total }}</div><div class="stat-label">已收集</div></div>
+          <div class="stat-card"><div class="stat-num">{{ Object.keys(collectStats.sizeStats || {}).length }}</div><div class="stat-label">分辨率种类</div></div>
+        </div>
+        <div v-if="collectStats?.sizeStats" style="margin: 12px 0;">
+          <h4 style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 8px;">分辨率分布</h4>
+          <div v-for="(count, size) in collectStats.sizeStats" :key="size" class="size-bar">
+            <span class="size-label">{{ size }}</span>
+            <div class="size-track"><div class="size-fill" :style="{ width: Math.min(count / (collectStats.total || 1) * 100, 100) + '%' }"></div></div>
+            <span class="size-count">{{ count }}</span>
+          </div>
+        </div>
+        <h4 style="font-size: 13px; color: var(--color-text-secondary); margin: 16px 0 8px;">最近提交</h4>
+        <div v-for="item in collectStats?.recent || []" :key="item.filename" class="mgmt-card">
+          <div class="mgmt-top">
+            <strong>{{ item.size }}</strong>
+            <span style="font-size: 12px; color: var(--color-text-secondary);">{{ item.phone || '未填' }}</span>
+          </div>
+          <div class="mgmt-meta">{{ item.time?.slice(0, 16) }} · {{ item.fp }}</div>
+          <div class="screenshot-wrap" @click="openScreenshot('/uploads/collect/' + item.filename)">
+            <img :src="'/uploads/collect/' + item.filename" class="screenshot-thumb" />
+          </div>
+        </div>
+        <p v-if="!collectStats" style="text-align:center;color:var(--color-text-disabled);padding:20px;">加载中...</p>
       </div>
 
       <!-- 截图大图预览用 showImagePreview 函数 -->
@@ -195,6 +224,12 @@ import api from '@/api';
 
 const forbidden = ref(false);
 const activeTab = ref('stats');
+
+// 待审核计数
+const pendingReviewCount = ref(0);
+
+// 截图收集统计
+const collectStats = ref(null);
 
 // Stats
 const stats = ref(null);
@@ -337,9 +372,24 @@ watch(activeTab, (tab) => {
   if (tab === 'users' && userList.value.length === 0) loadUsers();
   if (tab === 'tasks' && taskList.value.length === 0) loadTasks();
   if (tab === 'completions' && compList.value.length === 0) loadCompletions();
+  if (tab === 'collect' && !collectStats.value) loadCollectStats();
 });
 
-onMounted(() => { loadStats(); });
+async function loadCollectStats() {
+  try {
+    const res = await api.get('/collect/stats');
+    if (res.ok) collectStats.value = res;
+  } catch {}
+}
+
+async function loadPendingCount() {
+  try {
+    const res = await api.get('/admin/completions?status=manual_pending&limit=1');
+    if (res.ok) pendingReviewCount.value = res.total || 0;
+  } catch {}
+}
+
+onMounted(() => { loadStats(); loadPendingCount(); });
 </script>
 
 <style scoped>
@@ -391,6 +441,16 @@ onMounted(() => { loadStats(); });
 .filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
 .filter-chip { padding: 4px 10px; font-size: 12px; border-radius: 14px; border: 1px solid var(--divider); color: var(--color-text-regular); cursor: pointer; }
 .filter-chip.active { background: rgba(26,254,73,.12); border-color: var(--color-primary-dark); color: var(--color-primary-dark); font-weight: 600; }
+.filter-chip.urgent { background: rgba(255,76,76,.1); border-color: #f44; color: #e33; animation: pulse-urgent 2s infinite; }
+@keyframes pulse-urgent { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+/* 截图收集 */
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.size-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.size-label { font-size: 12px; min-width: 90px; color: var(--color-text-regular); }
+.size-track { flex: 1; height: 6px; background: var(--divider); border-radius: 3px; overflow: hidden; }
+.size-fill { height: 100%; background: var(--color-primary-dark); border-radius: 3px; transition: width .3s; }
+.size-count { font-size: 12px; min-width: 24px; text-align: right; color: var(--color-text-secondary); }
 
 /* 截图预览 */
 .screenshot-wrap { margin: 8px 0; cursor: pointer; }

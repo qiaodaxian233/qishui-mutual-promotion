@@ -361,7 +361,12 @@ router.get('/completions', requireAuth, requireAdmin, async (req, res) => {
     params
   );
 
-  res.json({ ok: true, completions: rows });
+  const [[{ total }]] = await pool.query(
+    `SELECT COUNT(*) AS total FROM task_completions c WHERE ${where}`,
+    status ? [status] : []
+  );
+
+  res.json({ ok: true, completions: rows, total });
 });
 
 /**

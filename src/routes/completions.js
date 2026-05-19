@@ -97,7 +97,7 @@ router.post('/:id/submit', requireAuth, strictLimiter, upload.single('screenshot
   try {
     const localPromise = verifyScreenshot(screenshotInfo.relativePath, { songName, taskType });
     const timeoutPromise = new Promise(resolve =>
-      setTimeout(() => resolve({ ok: true, passed: null, skipped: true, reason: '本地分析超时,跳过' }), 5000)
+      setTimeout(() => resolve({ ok: true, passed: null, skipped: true, reason: '本地分析超时,跳过' }), 10000)
     );
     localResult = await Promise.race([localPromise, timeoutPromise]);
     console.log(`[submit] 本地验证: passed=${localResult.passed}, reason=${localResult.reason}`);
