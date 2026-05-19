@@ -208,7 +208,9 @@ async function detectRedHeart(imagePath) {
 
 /**
  * 检测播放进度是否过半
- * 缩小扫描到 85-93%,用桶聚类找真正的圆点位置
+ * 扫描 87%-91% 横向窄带(刚好在播放按钮上方,避开干扰)
+ * 找"高亮像素",用桶聚类定位圆点
+ * 颜色判定:纯白(>=210) 或 浅灰白(>=180且不偏色),兼容主题色变化
  */
 async function detectProgress(imagePath) {
   try {
@@ -217,6 +219,7 @@ async function detectProgress(imagePath) {
     const w = meta.width;
     const h = meta.height;
 
+    // 注意:扫描区刚好在播放按钮上方,不要扩大,否则中央播放按钮会干扰
     const cropTop = Math.floor(h * 0.87);
     const cropBottom = Math.floor(h * 0.91);
     const cropHeight = cropBottom - cropTop;
@@ -231,23 +234,30 @@ async function detectProgress(imagePath) {
     const scanWidth = info.width;
     const scanHeight = info.height;
 
-    // 逐行找亮色簇,但只保留"孤立"簇(进度条圆点所在行几乎只有它一个亮点)
+    // 亮像素判定:纯白 或 浅灰白(亮度足够+RGB接近不偏色)
+    // 兼容汽水蓝/紫/粉等主题色下圆点不一定全白的情况
+    const isBright = (idx) => {
+      const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+      const brightness = (r + g + b) / 3;
+      if (brightness >= 210) return true;
+      if (brightness >= 180 && Math.max(r, g, b) - Math.min(r, g, b) < 25) return true;
+      return false;
+    };
+
     let allDots = [];
 
     for (let y = 0; y < scanHeight; y++) {
-      let clusters = []; // 这行所有亮色簇
+      let clusters = [];
       let streak = 0;
       let clusterStart = -1;
 
       for (let x = 0; x < scanWidth; x++) {
         const idx = (y * scanWidth + x) * channels;
-        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
-
-        if (brightness > 210) {  // 只找白色/高亮像素(进度条圆点)
+        if (isBright(idx)) {
           if (streak === 0) clusterStart = x;
           streak++;
         } else {
-          if (streak >= 3 && streak < 25) { // 3-25px(圆点大小,排除大按钮)
+          if (streak >= 3 && streak < 25) {
             clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
           }
           streak = 0;
@@ -257,7 +267,7 @@ async function detectProgress(imagePath) {
         clusters.push({ x: clusterStart + Math.floor(streak / 2), width: streak });
       }
 
-      // 进度条那行特征:只有 1-3 个小亮簇(圆点+可能的进度线端点)
+      // 进度条行特征:只有 1-3 个小亮簇
       if (clusters.length >= 1 && clusters.length <= 3) {
         for (const c of clusters) {
           allDots.push(c.x);
@@ -286,7 +296,6 @@ async function detectProgress(imagePath) {
         bestArr = arr;
       }
     }
-
     if (!bestArr) return null;
 
     const median = bestArr.sort((a, b) => a - b)[Math.floor(bestArr.length / 2)];
