@@ -50,6 +50,7 @@ app.use('/api/points', require('./routes/points'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/checkin', require('./routes/checkin'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/collect', require('./routes/collect'));
 
 // ============================================================
 // 前端静态文件托管
@@ -79,6 +80,16 @@ if (fs.existsSync(PUBLIC_DIR)) {
   if (fs.existsSync(UPLOADS_DIR)) {
     app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
   }
+
+  // 截图收集独立页面(不走 SPA)
+  const COLLECT_PAGE = path.join(PUBLIC_DIR, 'collect.html');
+  app.get('/collect', (req, res) => {
+    if (fs.existsSync(COLLECT_PAGE)) {
+      res.sendFile(COLLECT_PAGE);
+    } else {
+      res.status(404).send('收集页面未部署');
+    }
+  });
 
   // SPA fallback:所有 GET 非 /api 路径都返回 index.html
   // 这样前端深层路由(如 /tasks/123)刷新页面也能正常加载

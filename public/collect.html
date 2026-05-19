@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>截图收集 · 音乐加油站</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0f;
+  --card: #14141f;
+  --border: #2a2a3a;
+  --accent: #7c5cfc;
+  --accent-glow: rgba(124, 92, 252, 0.25);
+  --green: #34d399;
+  --green-bg: rgba(52, 211, 153, 0.12);
+  --red: #f87171;
+  --red-bg: rgba(248, 113, 113, 0.12);
+  --text: #e8e8f0;
+  --text2: #9898b0;
+  --text3: #5a5a72;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+.bg-glow {
+  position: fixed; top: -40%; left: -20%; width: 140%; height: 80%;
+  background: radial-gradient(ellipse, rgba(124, 92, 252, 0.08) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
+}
+
+.container {
+  position: relative; z-index: 1;
+  max-width: 420px; margin: 0 auto;
+  padding: 20px 16px 40px;
+}
+
+.header {
+  text-align: center; padding: 24px 0 20px;
+}
+
+.logo-icon {
+  width: 56px; height: 56px; border-radius: 16px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px; margin-bottom: 12px;
+}
+
+.header h1 {
+  font-size: 22px; font-weight: 700; letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+
+.header p {
+  font-size: 13px; color: var(--text2); line-height: 1.6;
+}
+
+.stats-bar {
+  display: flex; gap: 8px; margin: 16px 0 20px;
+}
+
+.stat-chip {
+  flex: 1; background: var(--card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px; text-align: center;
+}
+
+.stat-chip .num {
+  font-size: 22px; font-weight: 700; color: var(--accent);
+  line-height: 1;
+}
+
+.stat-chip .label {
+  font-size: 11px; color: var(--text3); margin-top: 4px;
+}
+
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 20px; margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 14px; font-weight: 500; color: var(--text2);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+
+.card-title::before {
+  content: ''; width: 3px; height: 14px; border-radius: 2px;
+  background: var(--accent);
+}
+
+.upload-zone {
+  border: 2px dashed var(--border); border-radius: 12px;
+  padding: 32px 16px; text-align: center; cursor: pointer;
+  transition: all 0.2s;
+  position: relative; overflow: hidden;
+}
+
+.upload-zone:active { transform: scale(0.98); }
+
+.upload-zone.dragover {
+  border-color: var(--accent); background: var(--accent-glow);
+}
+
+.upload-zone.has-image {
+  border: none; padding: 0;
+}
+
+.upload-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(124, 92, 252, 0.12);
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-bottom: 12px;
+}
+
+.upload-icon svg { width: 24px; height: 24px; stroke: var(--accent); }
+
+.upload-zone .hint {
+  font-size: 14px; color: var(--text); margin-bottom: 4px;
+}
+
+.upload-zone .sub-hint {
+  font-size: 12px; color: var(--text3);
+}
+
+.preview-wrap {
+  position: relative; width: 100%;
+}
+
+.preview-wrap img {
+  width: 100%; border-radius: 10px; display: block;
+}
+
+.preview-meta {
+  position: absolute; bottom: 8px; left: 8px; right: 8px;
+  background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+  border-radius: 8px; padding: 8px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px;
+}
+
+.preview-meta .size { color: var(--green); font-weight: 500; }
+
+.preview-remove {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(248, 113, 113, 0.2); border: none;
+  color: var(--red); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.phone-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; color: var(--text);
+  font-size: 14px; font-family: inherit; outline: none;
+  transition: border-color 0.2s;
+}
+
+.phone-input:focus { border-color: var(--accent); }
+
+.phone-input::placeholder { color: var(--text3); }
+
+.submit-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: linear-gradient(135deg, var(--accent), #9b7bfc);
+  color: #fff; font-size: 16px; font-weight: 600;
+  font-family: inherit; cursor: pointer;
+  transition: all 0.2s; margin-top: 8px;
+}
+
+.submit-btn:active { transform: scale(0.97); }
+
+.submit-btn:disabled {
+  opacity: 0.4; cursor: not-allowed; transform: none;
+}
+
+.submit-btn.loading {
+  pointer-events: none; position: relative;
+}
+
+.submit-btn.loading::after {
+  content: ''; position: absolute;
+  width: 20px; height: 20px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  top: 50%; left: 50%; margin: -10px 0 0 -10px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.result-box {
+  border-radius: 12px; padding: 16px; text-align: center;
+  margin-top: 16px; display: none;
+}
+
+.result-box.success {
+  display: block; background: var(--green-bg); border: 1px solid rgba(52, 211, 153, 0.2);
+}
+
+.result-box.error {
+  display: block; background: var(--red-bg); border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.result-box .icon { font-size: 32px; margin-bottom: 8px; }
+.result-box .msg { font-size: 14px; line-height: 1.6; }
+.result-box.success .msg { color: var(--green); }
+.result-box.error .msg { color: var(--red); }
+
+.rules {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 16px 20px; margin-bottom: 16px;
+}
+
+.rules h3 {
+  font-size: 13px; color: var(--text2); font-weight: 500; margin-bottom: 10px;
+}
+
+.rules ul {
+  list-style: none; font-size: 13px; color: var(--text3); line-height: 2;
+}
+
+.rules ul li::before {
+  content: '·'; color: var(--accent); font-weight: 700;
+  margin-right: 8px;
+}
+
+.already-done {
+  text-align: center; padding: 40px 20px;
+}
+
+.already-done .check {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--green-bg); display: inline-flex;
+  align-items: center; justify-content: center;
+  margin-bottom: 16px; font-size: 32px;
+}
+
+.already-done h2 { font-size: 18px; margin-bottom: 8px; }
+.already-done p { font-size: 14px; color: var(--text2); }
+
+.hidden { display: none !important; }
+
+.example-imgs {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  margin-top: 10px;
+}
+
+.example-imgs .ex {
+  background: var(--bg); border-radius: 8px; padding: 20px 0;
+  text-align: center; font-size: 11px; color: var(--text3);
+  border: 1px solid var(--border);
+}
+
+.example-imgs .ex .tag {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; margin-top: 4px;
+}
+
+.ex .tag.yes { background: var(--green-bg); color: var(--green); }
+.ex .tag.no { background: var(--red-bg); color: var(--red); }
+
+.footer {
+  text-align: center; padding: 24px 0 8px;
+  font-size: 12px; color: var(--text3);
+}
+</style>
+</head>
+<body>
+<div class="bg-glow"></div>
+
+<div class="container">
+  <div class="header">
+    <div class="logo-icon">🎵</div>
+    <h1>截图收集计划</h1>
+    <p>帮助我们优化截图识别算法<br>每台设备仅需提交一张汽水音乐播放页截图</p>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-chip">
+      <div class="num" id="totalCount">-</div>
+      <div class="label">已收集设备</div>
+    </div>
+    <div class="stat-chip">
+      <div class="num" id="goalCount">50</div>
+      <div class="label">目标数量</div>
+    </div>
+  </div>
+
+  <!-- 已提交过的提示 -->
+  <div id="alreadyDone" class="already-done hidden">
+    <div class="check">✓</div>
+    <h2>你已经提交过了</h2>
+    <p>感谢你的贡献!每台设备只需提交一次</p>
+  </div>
+
+  <!-- 上传表单 -->
+  <div id="uploadForm">
+    <div class="rules">
+      <h3>截图要求</h3>
+      <ul>
+        <li>打开汽水音乐，进入任意歌曲播放页</li>
+        <li>确保能看到进度条、歌名、底部导航栏</li>
+        <li>进度条位置不限(开头、中间、末尾均可)</li>
+        <li>直接手机截屏，不要裁剪或编辑</li>
+      </ul>
+      <div class="example-imgs">
+        <div class="ex">
+          播放页 + 完整进度条<br>
+          <span class="tag yes">✓ 正确</span>
+        </div>
+        <div class="ex">
+          歌单页 / 搜索页 / 裁剪图<br>
+          <span class="tag no">✗ 无效</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">上传截图</div>
+      <div class="upload-zone" id="uploadZone">
+        <div id="uploadPlaceholder">
+          <div class="upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div class="hint">点击选择截图</div>
+          <div class="sub-hint">支持 JPG / PNG / WebP / HEIC</div>
+        </div>
+        <div class="preview-wrap hidden" id="previewWrap">
+          <img id="previewImg" src="" alt="预览">
+          <div class="preview-meta">
+            <span class="size" id="previewSize"></span>
+            <button class="preview-remove" id="removeBtn" title="移除">✕</button>
+          </div>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
+    </div>
+
+    <div class="card">
+      <div class="card-title">手机型号 (选填)</div>
+      <input type="text" class="phone-input" id="phoneModel" placeholder="如: iPhone 15 Pro / Redmi K70">
+    </div>
+
+    <button class="submit-btn" id="submitBtn" disabled>提交截图</button>
+
+    <div class="result-box" id="resultBox">
+      <div class="icon" id="resultIcon"></div>
+      <div class="msg" id="resultMsg"></div>
+    </div>
+  </div>
+
+  <div class="footer">音乐加油站 · 截图收集</div>
+</div>
+
+<script>
+(function() {
+  const $ = id => document.getElementById(id);
+  const uploadZone = $('uploadZone');
+  const fileInput = $('fileInput');
+  const previewWrap = $('previewWrap');
+  const previewImg = $('previewImg');
+  const previewSize = $('previewSize');
+  const placeholder = $('uploadPlaceholder');
+  const removeBtn = $('removeBtn');
+  const submitBtn = $('submitBtn');
+  const resultBox = $('resultBox');
+  const phoneModel = $('phoneModel');
+
+  let selectedFile = null;
+
+  // 设备指纹(canvas + 屏幕信息)
+  function getFingerprint() {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200; canvas.height = 50;
+      const ctx = canvas.getContext('2d');
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(0, 0, 80, 50);
+      ctx.fillStyle = '#069';
+      ctx.fillText('fp:' + navigator.language, 2, 2);
+      ctx.fillStyle = 'rgba(102,204,0,0.7)';
+      ctx.fillText(screen.width + 'x' + screen.height, 4, 18);
+      const data = canvas.toDataURL();
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        hash = ((hash << 5) - hash) + data.charCodeAt(i);
+        hash |= 0;
+      }
+      return Math.abs(hash).toString(36) + '_' +
+             screen.width + 'x' + screen.height + '_' +
+             (navigator.hardwareConcurrency || 0) + '_' +
+             (navigator.maxTouchPoints || 0);
+    } catch {
+      return 'unknown_' + Date.now();
+    }
+  }
+
+  const fingerprint = getFingerprint();
+
+  // 检查状态
+  async function checkStatus() {
+    try {
+      const res = await fetch('/api/collect/status?fp=' + fingerprint);
+      const data = await res.json();
+      if (data.ok) {
+        $('totalCount').textContent = data.totalCount;
+        if (data.submitted || localStorage.getItem('qishui_collected')) {
+          $('alreadyDone').classList.remove('hidden');
+          $('uploadForm').classList.add('hidden');
+        }
+      }
+    } catch {}
+  }
+  checkStatus();
+
+  // 点击上传区
+  uploadZone.addEventListener('click', (e) => {
+    if (e.target === removeBtn || e.target.closest('.preview-remove')) return;
+    if (!uploadZone.classList.contains('has-image')) {
+      fileInput.click();
+    }
+  });
+
+  // 文件选择
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) handleFile(fileInput.files[0]);
+  });
+
+  // 拖放
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.classList.add('dragover');
+  });
+  uploadZone.addEventListener('dragleave', () => {
+    uploadZone.classList.remove('dragover');
+  });
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+
+  function handleFile(file) {
+    if (!file.type.match(/^image\/(jpeg|png|webp|heic|heif)/)) {
+      showResult('error', '请选择图片文件(JPG/PNG/WebP/HEIC)');
+      return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      showResult('error', '文件太大,请选择 15MB 以内的截图');
+      return;
+    }
+
+    selectedFile = file;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      previewImg.src = e.target.result;
+
+      const img = new Image();
+      img.onload = () => {
+        previewSize.textContent = img.width + ' × ' + img.height;
+        if (img.height < img.width) {
+          showResult('error', '请上传竖屏手机截图,不要横屏');
+          selectedFile = null;
+          return;
+        }
+        hideResult();
+      };
+      img.src = e.target.result;
+
+      placeholder.classList.add('hidden');
+      previewWrap.classList.remove('hidden');
+      uploadZone.classList.add('has-image');
+      submitBtn.disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // 移除
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetUpload();
+  });
+
+  function resetUpload() {
+    selectedFile = null;
+    fileInput.value = '';
+    previewImg.src = '';
+    placeholder.classList.remove('hidden');
+    previewWrap.classList.add('hidden');
+    uploadZone.classList.remove('has-image');
+    submitBtn.disabled = true;
+    hideResult();
+  }
+
+  // 提交
+  submitBtn.addEventListener('click', async () => {
+    if (!selectedFile || submitBtn.disabled) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '';
+    submitBtn.classList.add('loading');
+    hideResult();
+
+    const formData = new FormData();
+    formData.append('screenshot', selectedFile);
+    formData.append('fingerprint', fingerprint);
+    formData.append('phone', phoneModel.value.trim());
+
+    try {
+      const res = await fetch('/api/collect/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      submitBtn.classList.remove('loading');
+
+      if (data.ok) {
+        showResult('success', data.message || '提交成功!');
+        localStorage.setItem('qishui_collected', '1');
+        $('totalCount').textContent = data.totalCount || '-';
+
+        setTimeout(() => {
+          $('uploadForm').classList.add('hidden');
+          $('alreadyDone').classList.remove('hidden');
+        }, 2000);
+      } else {
+        showResult('error', data.error || '提交失败');
+        if (res.status !== 409) {
+          submitBtn.disabled = false;
+        } else {
+          localStorage.setItem('qishui_collected', '1');
+          setTimeout(() => {
+            $('uploadForm').classList.add('hidden');
+            $('alreadyDone').classList.remove('hidden');
+          }, 2000);
+        }
+      }
+    } catch (err) {
+      submitBtn.classList.remove('loading');
+      showResult('error', '网络错误,请重试');
+      submitBtn.disabled = false;
+    }
+
+    submitBtn.textContent = '提交截图';
+  });
+
+  function showResult(type, msg) {
+    resultBox.className = 'result-box ' + type;
+    $('resultIcon').textContent = type === 'success' ? '🎉' : '⚠️';
+    $('resultMsg').textContent = msg;
+  }
+
+  function hideResult() {
+    resultBox.className = 'result-box';
+    resultBox.style.display = 'none';
+    setTimeout(() => resultBox.style.display = '', 0);
+  }
+})();
+</script>
+</body>
+</html>
