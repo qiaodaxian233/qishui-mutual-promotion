@@ -1,18 +1,24 @@
 /**
  * 邮件服务(QQ 邮箱 SMTP)
+ *
+ * QQ 邮箱配置说明:
+ * - 主机:smtp.qq.com
+ * - 端口:465(SSL) 或 587(STARTTLS)
+ * - 用户:你的完整 QQ 邮箱(xxx@qq.com)
+ * - 密码:不是 QQ 密码,是「IMAP/SMTP 授权码」
+ *   开启路径:mail.qq.com → 设置 → 账户 → POP3/SMTP 服务
  */
 const nodemailer = require('nodemailer');
 const config = require('../config');
 
 let transporter = null;
-let smtpFailAlertSent = false; // 防止重复告警
 
 function getTransporter() {
   if (!transporter) {
     transporter = nodemailer.createTransport({
       host: config.smtp.host,
       port: config.smtp.port,
-      secure: config.smtp.secure,
+      secure: config.smtp.secure, // 465 走 SSL,587 走 STARTTLS(secure=false)
       auth: {
         user: config.smtp.user,
         pass: config.smtp.pass
@@ -23,53 +29,16 @@ function getTransporter() {
 }
 
 /**
- * SMTP 失效时发告警邮件给管理员（只发一次）
- */
-async function sendSmtpFailAlert(errMsg) {
-  if (smtpFailAlertSent) return;
-  smtpFailAlertSent = true;
-
-  try {
-    const alertTransporter = nodemailer.createTransport({
-      host: config.smtp.host,
-      port: config.smtp.port,
-      secure: config.smtp.secure,
-      auth: { user: config.smtp.user, pass: config.smtp.pass }
-    });
-    await alertTransporter.sendMail({
-      from: `"音乐加油站 告警" <${config.smtp.user}>`,
-      to: config.smtp.user,
-      subject: '【音乐加油站】⚠️ SMTP 授权码已失效，请及时更新',
-      html: `
-        <div style="font-family:sans-serif;max-width:500px;padding:24px;background:#fff8f0;border-radius:12px;border:2px solid #ff6b35;">
-          <h2 style="color:#ff3b30;margin-top:0;">⚠️ SMTP 邮件服务异常</h2>
-          <p style="color:#333;">你的音乐加油站平台 SMTP 授权码可能已失效，导致验证码无法发送。</p>
-          <p style="color:#666;font-size:13px;"><strong>错误信息：</strong>${errMsg}</p>
-          <p style="color:#666;font-size:13px;"><strong>发生时间：</strong>${new Date().toLocaleString('zh-CN')}</p>
-          <hr style="border:none;border-top:1px solid #eee;margin:16px 0;">
-          <p style="color:#333;font-size:14px;">请前往 <a href="https://mail.qq.com">mail.qq.com</a> → 设置 → 账户 → 重新生成 SMTP 授权码，并更新服务器 <code>.env</code> 中的 <code>SMTP_PASS</code>，然后执行 <code>pm2 restart qishui-mutual-promotion</code>。</p>
-        </div>
-      `
-    });
-    console.log('[mailer] 告警邮件已发送给管理员');
-  } catch (e) {
-    console.error('[mailer] 告警邮件也发送失败（SMTP 完全不可用）:', e.message);
-  }
-}
-
-/**
  * 启动时验证 SMTP 配置可用(非阻塞,失败只打日志)
  */
 async function verifyConnection() {
   try {
     await getTransporter().verify();
     console.log(`[mailer] SMTP 连接成功(${config.smtp.host}:${config.smtp.port})`);
-    smtpFailAlertSent = false; // 重置告警状态
     return true;
   } catch (err) {
     console.error(`[mailer] ⚠️ SMTP 连接失败:${err.message}`);
     console.error(`  发邮件会失败,请检查 SMTP_USER / SMTP_PASS(QQ 授权码,非密码)`);
-    sendSmtpFailAlert(err.message); // 触发告警
     return false;
   }
 }
@@ -116,14 +85,9 @@ async function sendVerificationCode(toEmail, code, purpose = 'register') {
       html
     });
     console.log(`[mailer] 验证码已发送给 ${toEmail},messageId: ${info.messageId}`);
-    smtpFailAlertSent = false; // 发送成功，重置告警
     return { ok: true, messageId: info.messageId };
   } catch (err) {
     console.error(`[mailer] 发送失败:${toEmail},${err.message}`);
-    // 535 = 认证失败，授权码失效
-    if (err.message.includes('535') || err.message.includes('Invalid login')) {
-      sendSmtpFailAlert(err.message);
-    }
     return { ok: false, error: err.message };
   }
 }

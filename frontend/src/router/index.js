@@ -108,7 +108,7 @@ router.beforeEach((to, from, next) => {
 
   // 设置页面标题
   if (to.meta.title) {
-    document.title = `${to.meta.title} · 汽水音乐互推`;
+    document.title = `${to.meta.title} · 音乐加油站`;
   }
 
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {

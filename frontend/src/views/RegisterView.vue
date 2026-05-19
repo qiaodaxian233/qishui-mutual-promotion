@@ -5,10 +5,10 @@
     <div class="auth-content">
       <!-- Logo -->
       <div class="logo-wrap">
-        <img src="/logo.png" alt="汽水音乐互推" class="logo" />
+        <img src="/logo.png" alt="音乐加油站" class="logo" />
       </div>
       <h1 class="auth-title">创建账号</h1>
-      <p class="auth-sub">加入汽水音乐互推 · 注册送 100 积分</p>
+      <p class="auth-sub">加入音乐加油站 · 注册送 100 积分</p>
 
       <!-- 表单 -->
       <div class="form-wrap">

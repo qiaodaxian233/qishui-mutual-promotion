@@ -2,8 +2,8 @@
   <div class="home">
     <!-- 顶部品牌区 -->
     <header class="brand">
-      <img src="/logo.png" alt="汽水音乐互推" class="brand-logo" />
-      <h1 class="brand-title">汽水音乐互推</h1>
+      <img src="/logo.png" alt="音乐加油站" class="brand-logo" />
+      <h1 class="brand-title">音乐加油站</h1>
       <p class="brand-slogan">让独立音乐人互相听见</p>
     </header>
 

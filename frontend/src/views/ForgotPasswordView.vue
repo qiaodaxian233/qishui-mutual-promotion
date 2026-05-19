@@ -4,7 +4,7 @@
 
     <div class="auth-content">
       <div class="logo-wrap">
-        <img src="/logo.png" alt="汽水音乐互推" class="logo" />
+        <img src="/logo.png" alt="音乐加油站" class="logo" />
       </div>
       <h1 class="auth-title">找回密码</h1>
       <p class="auth-sub">输入注册邮箱，我们发送验证码给你</p>

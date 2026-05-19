@@ -4,10 +4,10 @@
 
     <div class="auth-content">
       <div class="logo-wrap">
-        <img src="/logo.png" alt="汽水音乐互推" class="logo" />
+        <img src="/logo.png" alt="音乐加油站" class="logo" />
       </div>
       <h1 class="auth-title">欢迎回来</h1>
-      <p class="auth-sub">登录你的汽水互推账号</p>
+      <p class="auth-sub">登录你的音乐加油站账号</p>
 
       <div class="form-wrap">
         <div class="input-group">

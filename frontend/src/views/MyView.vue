@@ -327,10 +327,10 @@ async function onShareInvite() {
   const code = userStore.user?.inviteCode;
   if (!code) return;
   const url = `${location.origin}/register?invite=${code}`;
-  const text = `🎵 来汽水音乐互推！用我的邀请码 ${code} 注册，双方各得积分奖励！${url}`;
+  const text = `🎵 来音乐加油站！用我的邀请码 ${code} 注册，双方各得积分奖励！${url}`;
   try {
     if (navigator.share) {
-      await navigator.share({ title: '汽水音乐互推', text, url });
+      await navigator.share({ title: '音乐加油站', text, url });
     } else if (navigator.clipboard) {
       await navigator.clipboard.writeText(text);
       showToast('邀请链接已复制');

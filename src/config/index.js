@@ -42,7 +42,7 @@ module.exports = {
     secure: process.env.SMTP_SECURE !== 'false',
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
-    fromName: process.env.SMTP_FROM_NAME || '汽水音乐互推平台'
+    fromName: process.env.SMTP_FROM_NAME || '音乐加油站'
   },
 
   security: {
