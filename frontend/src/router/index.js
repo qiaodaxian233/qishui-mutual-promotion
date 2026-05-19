@@ -21,6 +21,12 @@ const routes = [
     meta: { title: '注册', guestOnly: true }
   },
   {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/ForgotPasswordView.vue'),
+    meta: { title: '找回密码', guestOnly: true }
+  },
+  {
     path: '/tasks',
     name: 'tasks',
     component: () => import('@/views/TasksView.vue'),

@@ -234,4 +234,61 @@ router.put('/password', requireAuth, strictLimiter, async (req, res) => {
   res.json({ ok: true, message: '密码修改成功' });
 });
 
+/**
+ * 验证重置密码验证码（不消耗，仅校验）
+ * body: { email, code }
+ */
+router.post('/verify-reset-code', strictLimiter, async (req, res) => {
+  const { email, code } = req.body || {};
+  if (!isValidEmail(email) || !isValidCode(code)) {
+    return res.status(400).json({ ok: false, error: '参数错误' });
+  }
+  // 只查，不标记已用（留给 reset-password 统一消耗）
+  const [rows] = await pool.query(
+    `SELECT id, expires_at, used_at FROM email_verifications
+     WHERE email = ? AND code = ? AND purpose = 'reset_password'
+     ORDER BY created_at DESC LIMIT 1`,
+    [email, code]
+  );
+  if (rows.length === 0) return res.status(400).json({ ok: false, error: '验证码错误' });
+  if (rows[0].used_at) return res.status(400).json({ ok: false, error: '验证码已被使用' });
+  if (new Date(rows[0].expires_at) < new Date()) return res.status(400).json({ ok: false, error: '验证码已过期' });
+  res.json({ ok: true });
+});
+
+/**
+ * 重置密码
+ * body: { email, code, newPassword }
+ */
+router.post('/reset-password', strictLimiter, async (req, res) => {
+  const { email, code, newPassword } = req.body || {};
+  if (!isValidEmail(email) || !isValidCode(code)) {
+    return res.status(400).json({ ok: false, error: '参数错误' });
+  }
+  if (!isValidPassword(newPassword)) {
+    return res.status(400).json({ ok: false, error: '密码需 8-64 位，且包含字母和数字' });
+  }
+
+  // 校验验证码（此处消耗）
+  const codeResult = await emailVerification.verifyCode({ email, code, purpose: 'reset_password' });
+  if (!codeResult.ok) {
+    return res.status(400).json(codeResult);
+  }
+
+  // 检查用户是否存在
+  const [[user]] = await pool.query('SELECT id FROM users WHERE email = ? LIMIT 1', [email]);
+  if (!user) {
+    return res.status(400).json({ ok: false, error: '用户不存在' });
+  }
+
+  const bcrypt = require('bcryptjs');
+  const newHash = await bcrypt.hash(newPassword, 12);
+  await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
+
+  // 踢掉所有旧 session
+  await pool.query('DELETE FROM user_sessions WHERE user_id = ?', [user.id]);
+
+  res.json({ ok: true, message: '密码重置成功' });
+});
+
 module.exports = router;

@@ -63,6 +63,9 @@
       <p class="switch-text">
         还没有账号？<a class="switch-link" @click="goRegister">立即注册</a>
       </p>
+      <p class="switch-text">
+        <a class="switch-link" @click="goForgot">忘记密码？</a>
+      </p>
     </div>
   </div>
 </template>
@@ -111,6 +114,7 @@ async function onLogin() {
 
 function onBack() { window.history.length > 1 ? router.back() : router.replace('/'); }
 function goRegister() { router.push({ name: 'register', query: route.query.redirect ? { redirect: route.query.redirect } : {} }); }
+function goForgot() { router.push({ name: 'forgot-password' }); }
 </script>
 
 <style scoped>
