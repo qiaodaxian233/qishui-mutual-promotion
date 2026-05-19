@@ -249,23 +249,70 @@ body {
 .hidden { display: none !important; }
 
 .example-imgs {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
-.example-imgs .ex {
-  background: var(--bg); border-radius: 8px; padding: 20px 0;
-  text-align: center; font-size: 11px; color: var(--text3);
+.example-demo {
+  position: relative; border-radius: 10px; overflow: hidden;
   border: 1px solid var(--border);
 }
 
-.example-imgs .ex .tag {
+.example-demo img {
+  width: 100%; display: block;
+}
+
+.anno {
+  position: absolute; left: 0; right: 0;
+  border: 2px solid var(--accent); border-radius: 6px;
+  pointer-events: none;
+}
+
+.anno .anno-label {
+  position: absolute; right: -2px; top: -1px;
+  background: var(--accent); color: #fff;
+  font-size: 10px; font-weight: 500;
+  padding: 2px 8px; border-radius: 0 6px 0 6px;
+  white-space: nowrap;
+}
+
+.anno.a-song { top: 65%; height: 8%; border-color: #7c5cfc; }
+.anno.a-song .anno-label { background: #7c5cfc; }
+
+.anno.a-icons { top: 76%; height: 6%; border-color: #f472b6; }
+.anno.a-icons .anno-label { background: #f472b6; }
+
+.anno.a-bar { top: 84.5%; height: 3.5%; border-color: #34d399; }
+.anno.a-bar .anno-label { background: #34d399; color: #064e3b; }
+
+.anno.a-nav { top: 89%; height: 7%; border-color: #fbbf24; }
+.anno.a-nav .anno-label { background: #fbbf24; color: #78350f; }
+
+.example-caption {
+  padding: 10px 12px; font-size: 12px; color: var(--text2);
+  background: var(--bg); display: flex; align-items: center; gap: 6px;
+}
+
+.example-caption .tag {
   display: inline-block; padding: 2px 8px; border-radius: 4px;
-  font-size: 10px; margin-top: 4px;
+  font-size: 10px; font-weight: 600;
 }
 
 .ex .tag.yes { background: var(--green-bg); color: var(--green); }
 .ex .tag.no { background: var(--red-bg); color: var(--red); }
+
+.wrong-list {
+  margin-top: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+
+.wrong-item {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 12px 10px; text-align: center;
+  font-size: 11px; color: var(--text3); line-height: 1.5;
+}
+
+.wrong-item .wrong-icon {
+  font-size: 20px; margin-bottom: 4px; opacity: 0.5;
+}
 
 .footer {
   text-align: center; padding: 24px 0 8px;
@@ -312,13 +359,27 @@ body {
         <li>直接手机截屏，不要裁剪或编辑</li>
       </ul>
       <div class="example-imgs">
-        <div class="ex">
-          播放页 + 完整进度条<br>
-          <span class="tag yes">✓ 正确</span>
+        <div class="example-demo">
+          <img src="/example-correct.jpg" alt="正确示例">
+          <div class="anno a-song"><span class="anno-label">歌名 + 作者</span></div>
+          <div class="anno a-icons"><span class="anno-label">红心 / 评论</span></div>
+          <div class="anno a-bar"><span class="anno-label">进度条 ← 关键</span></div>
+          <div class="anno a-nav"><span class="anno-label">底部导航栏</span></div>
         </div>
-        <div class="ex">
-          歌单页 / 搜索页 / 裁剪图<br>
-          <span class="tag no">✗ 无效</span>
+        <div class="example-caption">
+          <span class="tag yes">✓ 正确</span> 播放页完整截屏,包含以上四个区域
+        </div>
+        <div class="wrong-list">
+          <div class="wrong-item">
+            <div class="wrong-icon">✂️</div>
+            裁剪过的截图<br>
+            <span class="tag no">✗ 无效</span>
+          </div>
+          <div class="wrong-item">
+            <div class="wrong-icon">📋</div>
+            歌单/搜索页<br>
+            <span class="tag no">✗ 无效</span>
+          </div>
         </div>
       </div>
     </div>
