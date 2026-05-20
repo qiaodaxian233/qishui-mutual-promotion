@@ -40,9 +40,16 @@
       <div class="checkin-left">
         <span class="checkin-emoji">{{ checkinDone ? '✅' : '📅' }}</span>
         <div class="checkin-info">
-          <span class="checkin-title">{{ checkinDone ? '今日已签到' : '每日签到' }}</span>
+          <span class="checkin-title">
+            {{ checkinDone ? `今日已签到（连续 ${checkinStreak} 天）` : '每日签到' }}
+          </span>
           <span class="checkin-sub">
-            {{ checkinDone ? `今日 +${checkinReward} 积分` : '随机获得 50~1000 积分' }}
+            <template v-if="checkinDone">
+              今日 +{{ checkinReward }} 积分 · 明天可得 +{{ checkinNextReward }}
+            </template>
+            <template v-else>
+              连续第 {{ checkinStreak + 1 }} 天 · 今天可得 +{{ checkinTodayPreview }} 积分
+            </template>
           </span>
         </div>
       </div>
@@ -116,7 +123,17 @@ async function onLogout() {
 // 签到
 const checkinDone = ref(false);
 const checkinReward = ref(0);
+const checkinStreak = ref(0);          // 当前连续天数（已含今天）
+const checkinTodayPreview = ref(0);    // 今天还没签时，签到能拿多少
+const checkinNextReward = ref(0);      // 已签到后，明天能拿多少
 const checkinLoading = ref(false);
+
+// 与后端保持一致的奖励表
+const STREAK_REWARDS = [5, 7, 9, 12, 15, 20, 30];
+function calcNextReward(streak) {
+  // 明天 = streak + 1，对应索引 (streak+1-1) % 7 = streak % 7
+  return STREAK_REWARDS[streak % 7];
+}
 
 async function loadCheckinStatus() {
   try {
@@ -124,6 +141,9 @@ async function loadCheckinStatus() {
     if (res.ok) {
       checkinDone.value = res.checkedIn;
       checkinReward.value = res.todayReward;
+      checkinStreak.value = res.streak;
+      checkinTodayPreview.value = res.todayPreview || 0;
+      checkinNextReward.value = calcNextReward(res.streak);
     }
   } catch {}
 }
@@ -136,11 +156,15 @@ async function onCheckin() {
     if (res.ok) {
       checkinDone.value = true;
       checkinReward.value = res.reward;
+      checkinStreak.value = res.streak;
+      checkinNextReward.value = res.nextReward;
       showToast({ message: res.message, type: 'success' });
       await userStore.refreshMe();
     } else if (res.alreadyDone) {
       checkinDone.value = true;
       checkinReward.value = res.todayReward;
+      checkinStreak.value = res.streak;
+      checkinNextReward.value = calcNextReward(res.streak);
     } else {
       showToast(res.error || '签到失败');
     }
