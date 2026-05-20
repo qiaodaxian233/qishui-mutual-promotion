@@ -109,10 +109,10 @@ async function register({ email, password, nickname, ip, userAgent, inviteCode }
       [userId, config.business.initialPoints, config.business.initialPoints]
     );
 
-    // 邀请奖励:给邀请人加 1000 积分
+    // 邀请奖励:给邀请人加 50 积分
     if (inviterId) {
       await conn.query(
-        `UPDATE users SET points = points + 1000 WHERE id = ?`,
+        `UPDATE users SET points = points + 50 WHERE id = ?`,
         [inviterId]
       );
       const [[inviterInfo]] = await conn.query(
@@ -120,7 +120,7 @@ async function register({ email, password, nickname, ip, userAgent, inviteCode }
       );
       await conn.query(
         `INSERT INTO points_log (user_id, delta, balance_after, type, ref_type, ref_id, note)
-         VALUES (?, 1000, ?, 'reward', 'user', ?, ?)`,
+         VALUES (?, 50, ?, 'reward', 'user', ?, ?)`,
         [inviterId, inviterInfo.points, userId, `邀请新用户 ${nickname} 注册奖励`]
       );
     }

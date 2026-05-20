@@ -37,7 +37,7 @@
         <div class="invite-left">
           <span class="invite-emoji">🎁</span>
           <div class="invite-info">
-            <span class="invite-title">邀请好友得 1000 积分</span>
+            <span class="invite-title">邀请好友得 50 积分</span>
             <span class="invite-code">我的邀请码: {{ userStore.user.inviteCode }}</span>
           </div>
         </div>
