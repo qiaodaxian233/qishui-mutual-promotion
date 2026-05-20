@@ -341,14 +341,10 @@ CREATE TABLE `credit_log` (
   `delta`           INT             NOT NULL,
   `score_after`     INT             NOT NULL,
 
-  `reason`          ENUM(
-                      'task_complete_on_time',  -- 按时完成 +1
-                      'task_timeout',           -- 超时未完成 -3
-                      'continuous_active',      -- 连续 7 天 +5
-                      'appeal_lost',            -- 申诉败诉 -10
-                      'cheat_confirmed',        -- 作弊核实 -50
-                      'manual_adjust'           -- 人工调整
-                    ) NOT NULL,
+  -- reason 历史上是 ENUM,但实际代码(credit.adjust)传的是中文自由文本
+  -- 跟 migration v0.6.0.sql / v0.7.2.sql 对齐成 VARCHAR(500)
+  -- 旧库如果建表用了 ENUM,跑 db/migrations/v0.7.2.sql 升级
+  `reason`          VARCHAR(500)    NOT NULL,
   `ref_type`        VARCHAR(50)     DEFAULT NULL,
   `ref_id`          BIGINT UNSIGNED DEFAULT NULL,
   `note`            VARCHAR(500)    DEFAULT NULL,
@@ -357,7 +353,7 @@ CREATE TABLE `credit_log` (
 
   PRIMARY KEY (`id`),
   KEY `idx_user_created` (`user_id`, `created_at`),
-  KEY `idx_reason` (`reason`),
+  KEY `idx_reason` (`reason`(64)),
 
   CONSTRAINT `fk_credit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='信用分流水';

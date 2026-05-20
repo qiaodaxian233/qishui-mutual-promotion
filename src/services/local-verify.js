@@ -12,14 +12,44 @@ const fs = require('fs');
 
 // 缓存 worker 避免重复初始化
 let worker = null;
+let workerInitFailed = false;  // 一旦失败标记,避免每次请求都重试
 const TESSDATA_PATH = path.join(__dirname, '../../tessdata');
+const REQUIRED_LANGS = ['chi_sim', 'eng'];
+
+function checkTessdata() {
+  const missing = [];
+  for (const lang of REQUIRED_LANGS) {
+    const file = path.join(TESSDATA_PATH, `${lang}.traineddata`);
+    if (!fs.existsSync(file) || fs.statSync(file).size === 0) {
+      missing.push(lang);
+    }
+  }
+  return missing;
+}
 
 async function getWorker() {
+  if (workerInitFailed) {
+    throw new Error('OCR worker 初始化已失败,请先跑 `bash scripts/install-tessdata.sh` 安装 tessdata,然后重启服务');
+  }
   if (!worker) {
-    worker = await Tesseract.createWorker('chi_sim+eng', 1, {
-      langPath: TESSDATA_PATH,
-      gzip: false
-    });
+    const missing = checkTessdata();
+    if (missing.length > 0) {
+      workerInitFailed = true;
+      console.error(`[local-verify] ✗ tessdata 缺失:${missing.join(', ')}.traineddata`);
+      console.error(`[local-verify] ✗ 请在项目根目录跑:bash scripts/install-tessdata.sh`);
+      console.error(`[local-verify] ✗ 然后 pm2 restart qishui-mutual-promotion`);
+      throw new Error(`OCR 模型缺失:${missing.join(', ')}`);
+    }
+    try {
+      worker = await Tesseract.createWorker('chi_sim+eng', 1, {
+        langPath: TESSDATA_PATH,
+        gzip: false
+      });
+    } catch (err) {
+      workerInitFailed = true;
+      console.error(`[local-verify] ✗ Tesseract worker 初始化失败:`, err.message);
+      throw err;
+    }
   }
   return worker;
 }

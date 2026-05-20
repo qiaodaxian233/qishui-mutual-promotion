@@ -115,9 +115,10 @@ app.use((err, req, res, next) => {
 });
 
 // 启动
+const pkg = require('../package.json');
 app.listen(config.port, async () => {
   console.log(`====================================`);
-  console.log(`  音乐加油站 v0.5.2`);
+  console.log(`  音乐加油站 v${pkg.version}`);
   console.log(`  端口:${config.port}`);
   console.log(`  环境:${config.env}`);
   console.log(`====================================`);
@@ -127,4 +128,33 @@ app.listen(config.port, async () => {
 
   // 启动定时回查任务
   require('./services/scheduler').startScheduler();
+
+  // tessdata 自检(OCR 验证需要,缺失则警告不阻塞)
+  const tessdataDir = path.join(__dirname, '..', 'tessdata');
+  const requiredLangs = ['chi_sim', 'eng'];
+  const missing = requiredLangs.filter(l => {
+    const f = path.join(tessdataDir, `${l}.traineddata`);
+    return !fs.existsSync(f) || fs.statSync(f).size === 0;
+  });
+  if (missing.length > 0) {
+    console.warn('⚠️  ====================================');
+    console.warn(`⚠️  tessdata 缺失:${missing.join(', ')}.traineddata`);
+    console.warn(`⚠️  OCR 截图验证将无法工作`);
+    console.warn(`⚠️  请跑:bash scripts/install-tessdata.sh`);
+    console.warn(`⚠️  然后:pm2 restart qishui-mutual-promotion`);
+    console.warn('⚠️  ====================================');
+  }
+
+  // uploads 目录可写性自检
+  const uploadsDirs = ['uploads/screenshots', 'uploads/collect'];
+  for (const dir of uploadsDirs) {
+    const full = path.join(__dirname, '..', dir);
+    try {
+      if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
+      fs.accessSync(full, fs.constants.W_OK);
+    } catch (err) {
+      console.warn(`⚠️  ${dir} 不可写:${err.message}`);
+      console.warn(`⚠️  请跑:chown -R $(whoami) ${dir} && chmod 755 ${dir}`);
+    }
+  }
 });
