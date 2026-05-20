@@ -120,10 +120,43 @@ router.post('/upload', upload.single('screenshot'), async (req, res) => {
     const totalCount = Object.keys(db).length;
     console.log(`[collect] 新截图: ${filename} (${width}×${height}) 设备#${totalCount} fp=${fp}`);
 
+    // 自动测试截图能否通过验证
+    let autoTest = { passed: null, reason: '未运行', details: {} };
+
+    try {
+      const { verifyScreenshot } = require('../services/local-verify');
+      const { analyzeScreenshot } = require('../services/screenshot-ai');
+
+      const relativePath = path.relative(path.resolve(__dirname, '..', '..'), filepath);
+
+      const localPromise = verifyScreenshot(relativePath, { songName: '', taskType: 'like' });
+      const timeoutPromise = new Promise(resolve =>
+        setTimeout(() => resolve({ ok: true, passed: null, skipped: true, reason: '本地分析超时,跳过' }), 10000)
+      );
+      const localResult = await Promise.race([localPromise, timeoutPromise]);
+
+      const aiResult = await analyzeScreenshot(relativePath, 'like');
+
+      autoTest = {
+        passed: localResult.passed === false || aiResult.passed === false ? false : true,
+        reason: (localResult.passed === false || aiResult.passed === false)
+          ? (localResult.reason || aiResult.reason || '验证不通过')
+          : '验证通过',
+        details: {
+          local: { passed: localResult.passed, reason: localResult.reason || '' },
+          ai: { passed: aiResult.passed, reason: aiResult.reason || '' }
+        }
+      };
+    } catch (testErr) {
+      console.warn('[collect] 自动测试失败:', testErr.message);
+      autoTest = { passed: null, reason: '测试异常: ' + testErr.message, details: {} };
+    }
+
     res.json({
       ok: true,
       message: '提交成功,感谢你的贡献!',
-      totalCount
+      totalCount,
+      autoTest
     });
   } catch (err) {
     console.error('[collect] 上传失败:', err.message);
