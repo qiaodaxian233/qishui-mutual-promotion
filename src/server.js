@@ -73,7 +73,7 @@ if (fs.existsSync(PUBLIC_DIR)) {
   }));
 
   // 根目录的其它静态文件(favicon、图标等)短缓存
-  app.use(express.static(PUBLIC_DIR, { maxAge: '1h', index: false }));
+  app.use(express.static(PUBLIC_DIR, { maxAge: 0, index: false }));
 
   // 上传的截图文件(WebP 压缩后)
   const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
